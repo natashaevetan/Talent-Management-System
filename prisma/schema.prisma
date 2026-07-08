@@ -1,0 +1,396 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ---------- Auth ----------
+
+model Session {
+  id        String   @id
+  sid       String   @unique
+  data      String
+  expiresAt DateTime
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role     @default(STANDARD)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+}
+
+enum Role {
+  ADMIN
+  STANDARD
+}
+
+// ---------- Lookups (support inline "add new X" quick-add pattern) ----------
+
+model Client {
+  id             String   @id @default(cuid())
+  name           String   @unique
+  industry       String?
+  contactPerson  String?
+  contactEmail   String?
+  contactNumber  String?
+  accountManager String?
+  status         ClientStatus @default(ACTIVE)
+
+  talents  Talent[]
+  billing  ClientBilling?
+  sowRecords SowRecord[]
+  poRecords  PoRecord[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum ClientStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model ProjectType {
+  id      String   @id @default(cuid())
+  name    String   @unique
+  talents Talent[]
+}
+
+model LegalEntity {
+  id      String   @id @default(cuid())
+  name    String   @unique
+  talents Talent[]
+}
+
+model Recruiter {
+  id      String   @id @default(cuid())
+  name    String   @unique
+  active  Boolean  @default(true)
+  talents Talent[]
+}
+
+// ---------- Talent core ----------
+
+model Talent {
+  id            Int       @id @default(autoincrement()) // doubles as the human-readable "C000001" code (zero-padded in the API layer)
+  firstName     String
+  lastName      String
+  name          String
+  nric          String
+  dateOfBirth   DateTime?
+  sex           String?
+  nationality   String?
+  maritalStatus String?
+  dependants    Int?
+  address       String?
+  contactNumber String?
+  email         String?
+  bankAccount   String?
+  jobTitle      String?
+  skillset      String? // JSON-encoded string[]
+  workLocation  String?
+  active        Boolean @default(true) // soft delete
+
+  clientId      String?
+  client        Client?      @relation(fields: [clientId], references: [id])
+  projectTypeId String?
+  projectType   ProjectType? @relation(fields: [projectTypeId], references: [id])
+  entityId      String?
+  entity        LegalEntity? @relation(fields: [entityId], references: [id])
+  caseOwnerId   String?
+  caseOwner     Recruiter?   @relation(fields: [caseOwnerId], references: [id])
+
+  contract           Contract?
+  workPass            WorkPass?
+  insurance           InsurancePolicy?
+  payroll             Payroll?
+  talentBilling       TalentBilling?
+  leaveTimesheet      LeaveTimesheet?
+  offboarding         Offboarding?
+  sowLinks            SowTalent[]
+  poLinks             PoTalent[]
+  timesheetSnapshots  TimesheetSnapshot[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+}
+
+model Contract {
+  id       String @id @default(cuid())
+  talentId Int    @unique
+  talent   Talent @relation(fields: [talentId], references: [id], onDelete: Cascade)
+
+  contractStart           DateTime
+  contractEnd             DateTime
+  contractStatus          String  @default("Drafted") // Drafted/Pending Signature/Signed/Expired/Terminated
+  noticePeriod            String?
+  contractUpload          String?
+  signedContractUpload    String?
+  contractRenewalRequired Boolean @default(false)
+  contractRenewalStatus   String  @default("Not Started") // Not Started/In Progress/Completed
+  contractLifecycleStatus String? // "" | "Notice Period" | "Inactive" manual override
+  remarks                 String?
+  renewalRemarks          String?
+  sowRequired             Boolean @default(false)
+  poRequired              Boolean @default(false)
+  sowStatus               String?
+  poStatus                String?
+  renewalCompletedSeq     Int     @default(0)
+  datesUpdatedSeq         Int     @default(0)
+  contractNoticeSent      Boolean @default(false)
+
+  updatedAt DateTime @updatedAt
+}
+
+model WorkPass {
+  id       String @id @default(cuid())
+  talentId Int    @unique
+  talent   Talent @relation(fields: [talentId], references: [id], onDelete: Cascade)
+
+  workPassType                String  @default("EP") // EP/S Pass/Work Permit/Singapore Citizen/PR
+  passIssueDate                DateTime?
+  passExpiry                   DateTime?
+  passStatus                   String  @default("Not Started")
+  ipaDate                       DateTime?
+  passportExpiry                 DateTime?
+  medicalCheckupStatus            String?
+  medicalInsuranceStatus           String?
+  wicaCoverageStatus                String?
+  renewalRequired                    Boolean @default(false)
+  renewalStatus                       String  @default("Not Started")
+  educationVerificationStatus          String?
+  passLifecycleStatus                   String?
+  passRenewalRemarks                     String?
+  passRenewalCompletedSeq                Int     @default(0)
+  passDatesUpdatedSeq                     Int     @default(0)
+  workPassNoticeSent                       Boolean @default(false)
+
+  updatedAt DateTime @updatedAt
+}
+
+model InsurancePolicy {
+  id       String @id @default(cuid())
+  talentId Int    @unique
+  talent   Talent @relation(fields: [talentId], references: [id], onDelete: Cascade)
+
+  policyType                String  @default("Not Required") // Policy 1/Policy 2A/Not Required
+  policyIssueDate           DateTime?
+  policyExpiry              DateTime?
+  policyRenewalRequired     Boolean @default(false)
+  policyRenewalStatus       String  @default("Not Started")
+  policyRemarks             String?
+  insuranceNoticeSent       Boolean @default(false)
+  policyRenewalCompletedSeq Int     @default(0)
+  policyDatesUpdatedSeq     Int     @default(0)
+
+  updatedAt DateTime @updatedAt
+}
+
+model Payroll {
+  id       String @id @default(cuid())
+  talentId Int    @unique
+  talent   Talent @relation(fields: [talentId], references: [id], onDelete: Cascade)
+
+  salary                Float @default(0)
+  cpf                   Float @default(0)
+  skillsDevelopmentLevy Float @default(0)
+  wica                  Float @default(0)
+  medicalInsuranceCost  Float @default(0)
+  allowances            Float @default(0)
+  claimsReimbursements  Float @default(0)
+  overtime              Float @default(0)
+  noPayLeaveDeduction   Float @default(0)
+  otherStatutoryCosts   Float @default(0)
+
+  updatedAt DateTime @updatedAt
+}
+
+model TalentBilling {
+  id       String @id @default(cuid())
+  talentId Int    @unique
+  talent   Talent @relation(fields: [talentId], references: [id], onDelete: Cascade)
+
+  chargeRate            Float   @default(0)
+  billingType           String  @default("Monthly") // Monthly/Daily
+  talentInvoiceNumber   String?
+  talentInvoiceDate     DateTime?
+  talentInvoiceDueDate  DateTime?
+  talentInvoiceAmount   Float?
+  invoiceStatus         String  @default("Pending") // Paid/Pending/Overdue
+  talentInvoicePaidDate DateTime?
+
+  updatedAt DateTime @updatedAt
+}
+
+model LeaveTimesheet {
+  id       String @id @default(cuid())
+  talentId Int    @unique
+  talent   Talent @relation(fields: [talentId], references: [id], onDelete: Cascade)
+
+  annualLeaveEntitlement Float @default(14)
+  annualLeaveTaken       Float @default(0)
+  sickLeaveEntitlement   Float @default(14)
+  sickLeaveTaken         Float @default(0)
+  offInLieuEntitlement   Float @default(0)
+  offInLieuTaken         Float @default(0)
+  unpaidLeaveTaken       Float @default(0)
+  mcUpload               String?
+  leaveApprovalStatus    String?
+
+  // current-month working fields (kept for parity with mockup single-month view)
+  timesheetMonth     DateTime?
+  workingDays        Int?
+  timesheetSubmitted Boolean @default(false)
+  submissionDate     DateTime?
+  clientApproved     Boolean @default(false)
+  approvalDate       DateTime?
+  overtimeHours      Float @default(0)
+  absenceDays        Float @default(0)
+  timesheetRemarks   String?
+
+  updatedAt DateTime @updatedAt
+}
+
+// Real monthly snapshot table — starts accumulating from go-live forward (Phase 5).
+model TimesheetSnapshot {
+  id                 String    @id @default(cuid())
+  talentId           Int
+  talent             Talent    @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  month              DateTime // first-of-month marker
+  workingDays        Int?
+  timesheetSubmitted Boolean  @default(false)
+  submissionDate     DateTime?
+  clientApproved     Boolean  @default(false)
+  approvalDate       DateTime?
+  overtimeHours      Float    @default(0)
+  absenceDays        Float    @default(0)
+  remarks            String?
+  createdAt          DateTime @default(now())
+
+  @@unique([talentId, month])
+}
+
+model Offboarding {
+  id       String @id @default(cuid())
+  talentId Int    @unique
+  talent   Talent @relation(fields: [talentId], references: [id], onDelete: Cascade)
+
+  lastWorkingDay           DateTime?
+  resignationReason        String?
+  noticeServed              String?
+  workPassCancellationDate  DateTime?
+  clientNotified             String?
+  replacementRequired         String?
+  finalInvoiceIssued           String?
+  exitDocsCompleted             String?
+  offboardingRemarks             String?
+  offboardingChecklist            String? // JSON-encoded [{label,status}]
+
+  updatedAt DateTime @updatedAt
+}
+
+model ClientBilling {
+  id       String @id @default(cuid())
+  clientId String @unique
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  billingType               String?
+  chargeRate                Float?
+  currency                  String  @default("SGD")
+  billableStart              DateTime?
+  billableEnd                  DateTime?
+  sowRequired                    Boolean @default(false)
+  sowStatus                       String?
+  poRequired                       Boolean @default(false)
+  poStatus                          String?
+  invoiceNumber                     String?
+  invoiceDate                       DateTime?
+  invoiceAmount                     Float?
+  invoiceStatus                      String?
+  clientPaymentDueDate                DateTime?
+  clientPaymentReceivedDate            DateTime?
+
+  updatedAt DateTime @updatedAt
+}
+
+model SowRecord {
+  id       String @id @default(cuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  project                String // projectType label at time of record
+  sowRequired            Boolean @default(false)
+  sowStatus              String  @default("Yet to Draft")
+  dateOfCommencement     DateTime?
+  dateOfCompletion       DateTime?
+  remarks                String?
+  sowRenewalCompletedSeq Int     @default(0)
+  sowDatesUpdatedSeq     Int     @default(0)
+  noticeSent             Boolean @default(false)
+
+  talentLinks SowTalent[]
+
+  updatedAt DateTime @updatedAt
+}
+
+model SowTalent {
+  sowId    String
+  sow      SowRecord @relation(fields: [sowId], references: [id], onDelete: Cascade)
+  talentId Int
+  talent   Talent    @relation(fields: [talentId], references: [id], onDelete: Cascade)
+
+  @@id([sowId, talentId])
+}
+
+model PoRecord {
+  id       String @id @default(cuid())
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  month                 DateTime
+  poRequired            Boolean @default(false)
+  poStatus              String  @default("Yet to Draft")
+  poNo                  String?
+  dateOfCommencement    DateTime?
+  dateOfCompletion      DateTime?
+  remarks               String?
+  poRenewalCompletedSeq Int     @default(0)
+  poDatesUpdatedSeq     Int     @default(0)
+  noticeSent            Boolean @default(false)
+
+  talentLinks PoTalent[]
+
+  updatedAt DateTime @updatedAt
+}
+
+model PoTalent {
+  poId     String
+  po       PoRecord @relation(fields: [poId], references: [id], onDelete: Cascade)
+  talentId Int
+  talent   Talent   @relation(fields: [talentId], references: [id], onDelete: Cascade)
+
+  @@id([poId, talentId])
+}
+
+// Audit trail replacing the mockup's raw *RenewalCompletedSeq / *DatesUpdatedSeq staleness counters.
+model RenewalEvent {
+  id         String   @id @default(cuid())
+  entityType String   // "contract" | "workpass" | "insurance" | "sow" | "po"
+  entityId   String   // talentId, or SowRecord/PoRecord id
+  eventType  String   // "STATUS_MARKED_COMPLETED" | "DATES_UPDATED" | "NOTICE_SENT" | "STATUS_CHANGED"
+  fromValue  String?
+  toValue    String?
+  userId     String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+}
