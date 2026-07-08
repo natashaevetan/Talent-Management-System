@@ -137,7 +137,13 @@ talentsRouter.patch(
     if ("dependants" in b) data.dependants = b.dependants === null ? null : Number(b.dependants);
     if ("dateOfBirth" in b) data.dateOfBirth = b.dateOfBirth ? new Date(b.dateOfBirth as string) : null;
     if ("skillset" in b) data.skillset = toJson(b.skillset);
-    if (data.firstName || data.lastName) {
+    if (typeof b.name === "string" && b.name.trim()) {
+      // Personal tab edits the full name as one field; split it back into first/last so they stay in sync.
+      const parts = b.name.trim().split(/\s+/);
+      data.name = b.name.trim();
+      data.lastName = parts.length > 1 ? parts[parts.length - 1] : parts[0];
+      data.firstName = parts.length > 1 ? parts.slice(0, -1).join(" ") : parts[0];
+    } else if (data.firstName || data.lastName) {
       const current = await prisma.talent.findUniqueOrThrow({ where: { id } });
       data.name = `${data.firstName ?? current.firstName} ${data.lastName ?? current.lastName}`;
     }
@@ -147,6 +153,28 @@ talentsRouter.patch(
     if ("caseOwner" in b && typeof b.caseOwner === "string") data.caseOwnerId = (await upsertRecruiterByName(b.caseOwner)).id;
 
     await prisma.talent.update({ where: { id }, data });
+    res.json(await reserialize(id));
+  })
+);
+
+talentsRouter.patch(
+  "/:id/contract",
+  asyncHandler(async (req, res) => {
+    const id = Number(req.params.id);
+    const b = req.body as Record<string, unknown>;
+    const data: Record<string, unknown> = {};
+    for (const key of ["contractStatus", "noticePeriod", "contractUpload", "signedContractUpload", "contractRenewalStatus", "contractLifecycleStatus", "remarks", "renewalRemarks", "sowStatus", "poStatus"]) {
+      if (key in b) data[key] = b[key];
+    }
+    for (const key of ["contractStart", "contractEnd"]) {
+      if (key in b) data[key] = new Date(b[key] as string);
+    }
+    if ("contractRenewalRequired" in b) data.contractRenewalRequired = b.contractRenewalRequired === "Yes" || b.contractRenewalRequired === true;
+    if ("sowRequired" in b) data.sowRequired = b.sowRequired === "Yes" || b.sowRequired === true;
+    if ("poRequired" in b) data.poRequired = b.poRequired === "Yes" || b.poRequired === true;
+    if ("contractNoticeSent" in b) data.contractNoticeSent = Boolean(b.contractNoticeSent);
+
+    await prisma.contract.update({ where: { talentId: id }, data });
     res.json(await reserialize(id));
   })
 );

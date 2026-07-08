@@ -27,7 +27,7 @@ function generateExtraClientNames(count){
   }
   return [...names];
 }
-const clients = baseClients.slice(0, 10);
+const clients = []; // populated from the API at bootstrap (see bootstrap() at the end of this file)
 const projectTypes = ["Application Development","Infrastructure Support","Data Migration",
   "Cloud Engineering","QA & Testing","Cybersecurity","Business Analysis","Project Management"];
 const workPassTypes = ["EP","S Pass","Work Permit","Singapore Citizen","PR"];
@@ -63,7 +63,7 @@ function pick(arr){ return arr[randInt(0,arr.length-1)]; }
 function addDays(base, days){ const d = new Date(base); d.setDate(d.getDate()+days); return d; }
 function toISO(d){ return d.toISOString().slice(0,10); }
 
-const today = new Date("2026-07-01");
+const today = new Date();
 let nextId = 1;
 
 /* Monotonically increasing counter used to work out, for each talent, whether their
@@ -363,7 +363,7 @@ function makeTalent(){
   computeDerived(c);
   return c;
 }
-let talents = Array.from({length:200}, ()=>makeTalent());
+let talents = []; // populated from the API at bootstrap (see bootstrap() at the end of this file)
 
 function fmtDate(d){ return d.toLocaleDateString('en-SG', { day:'2-digit', month:'short', year:'numeric' }); }
 function fmtMoney(n){ return "S$ " + n.toLocaleString('en-SG'); }
@@ -1066,84 +1066,70 @@ document.getElementById('closeAddModal').addEventListener('click', closeAddModal
 document.getElementById('cancelAddModal').addEventListener('click', closeAddModalFn);
 modalOverlay.addEventListener('click', closeAddModalFn);
 
-document.getElementById('addTalentForm').addEventListener('submit', e=>{
+document.getElementById('addTalentForm').addEventListener('submit', async e=>{
   e.preventDefault();
-  const rawName = document.getElementById('f_name').value.trim();
-  const nameParts = rawName.split(/\s+/);
-  const firstName = nameParts.slice(0, -1).join(" ") || nameParts[0];
-  const lastName = nameParts.length > 1 ? nameParts[nameParts.length-1] : "";
-  const fallback = randomProfileFields(firstName || rawName, lastName || "");
+  const firstName = document.getElementById('f_firstName').value.trim();
+  const lastName = document.getElementById('f_lastName').value.trim();
 
   const skillsetInput = document.getElementById('f_skillset').value.trim();
-  const skillset = skillsetInput ? skillsetInput.split(",").map(s=>s.trim()).filter(Boolean) : fallback.skillset;
+  const skillset = skillsetInput ? skillsetInput.split(",").map(s=>s.trim()).filter(Boolean) : [];
 
   const passIssueVal = document.getElementById('f_passIssueDate').value;
   const dobVal = document.getElementById('f_dateOfBirth').value;
 
-  const newTalent = computeDerived({
-    id: nextId++,
+  const createPayload = {
     firstName, lastName,
-    name: rawName,
     client: document.getElementById('f_client').value,
     projectType: document.getElementById('f_projectType').value,
-    caseOwner: document.getElementById('f_caseOwner').value || fallback.caseOwner,
-    entity: document.getElementById('f_entity').value || fallback.entity,
+    caseOwner: document.getElementById('f_caseOwner').value,
+    entity: document.getElementById('f_entity').value,
     salary: Number(document.getElementById('f_salary').value),
     chargeRate: Number(document.getElementById('f_chargeRate').value),
-    contractStart: new Date(document.getElementById('f_contractStart').value),
-    contractEnd: new Date(document.getElementById('f_contractEnd').value),
-    noticePeriod: document.getElementById('f_noticePeriod').value,
-    sowRequired: document.getElementById('f_sowRequired').value,
-    poRequired: document.getElementById('f_poRequired').value,
-    passExpiry: new Date(document.getElementById('f_passExpiry').value),
-    passIssueDate: passIssueVal ? new Date(passIssueVal) : null,
-    workPassType: document.getElementById('f_workPassType').value || fallback.workPassType,
-    sowStatus: pick(sowStatuses), poStatus: pick(poStatuses),
-    billingType: pick(billingTypes), invoiceStatus: pick(invoiceStatuses),
-    ...randomLeaveTimesheetFields(),
-    nric: document.getElementById('f_nric').value.trim() || fallback.nric,
-    dateOfBirth: dobVal ? new Date(dobVal) : fallback.dateOfBirth,
-    sex: document.getElementById('f_sex').value || fallback.sex,
-    nationality: document.getElementById('f_nationality').value || fallback.nationality,
-    maritalStatus: document.getElementById('f_maritalStatus').value || fallback.maritalStatus,
-    dependants: document.getElementById('f_dependants').value !== "" ? Number(document.getElementById('f_dependants').value) : fallback.dependants,
-    email: document.getElementById('f_email').value.trim() || fallback.email,
-    contactNumber: document.getElementById('f_contactNumber').value.trim() || fallback.contactNumber,
-    address: document.getElementById('f_address').value.trim() || fallback.address,
-    bankAccount: document.getElementById('f_bankAccount').value.trim() || fallback.bankAccount,
-    jobTitle: document.getElementById('f_jobTitle').value.trim() || fallback.jobTitle,
-    workLocation: document.getElementById('f_workLocation').value || fallback.workLocation,
-    skillset,
-  });
-  Object.assign(newTalent, randomComplianceFields(newTalent));
-  if(passIssueVal) newTalent.passIssueDate = new Date(passIssueVal);
-  Object.assign(newTalent, randomPolicyFields(newTalent));
-  Object.assign(newTalent, randomContractFields(newTalent));
-  newTalent.noticePeriod = document.getElementById('f_noticePeriod').value || newTalent.noticePeriod;
-  Object.assign(newTalent, randomPayrollFields(newTalent));
-  Object.assign(newTalent, randomOffboardingFields(newTalent));
-  Object.assign(newTalent, randomTalentBillingFields(newTalent));
-  newTalent.policyType = document.getElementById('f_policyType').value || newTalent.policyType;
-  if(newTalent.policyType === "Not Required"){
-    newTalent.policyIssueDate = null;
-    newTalent.policyExpiry = null;
-    newTalent.policyRenewalRequired = "No";
-    newTalent.policyRenewalStatus = "Not Started";
-  } else if(!newTalent.policyIssueDate || !newTalent.policyExpiry){
-    newTalent.policyIssueDate = addDays(newTalent.contractStart, randInt(0,20));
-    newTalent.policyExpiry = addDays(today, randInt(-10,400));
-    newTalent.policyRenewalRequired = Math.ceil((newTalent.policyExpiry - today)/86400000) <= 90 ? "Yes" : "No";
-    newTalent.policyRenewalStatus = newTalent.policyRenewalRequired === "Yes" ? pick(["Not Started","In Progress","Completed"]) : "Not Started";
-    newTalent.policyRemarks = newTalent.policyRemarks || pick(policyRemarksPool);
+    contractStart: document.getElementById('f_contractStart').value,
+    contractEnd: document.getElementById('f_contractEnd').value,
+    passExpiry: document.getElementById('f_passExpiry').value,
+    workPassType: document.getElementById('f_workPassType').value,
+    jobTitle: document.getElementById('f_jobTitle').value.trim(),
+    workLocation: document.getElementById('f_workLocation').value,
+  };
+
+  try{
+    let newTalent = await api.talents.create(createPayload);
+
+    // Optional personal-detail fields the add form also collects, applied as a follow-up patch.
+    const personalPatch = {
+      nric: document.getElementById('f_nric').value.trim(),
+      dateOfBirth: dobVal || null,
+      sex: document.getElementById('f_sex').value,
+      nationality: document.getElementById('f_nationality').value,
+      maritalStatus: document.getElementById('f_maritalStatus').value,
+      dependants: document.getElementById('f_dependants').value !== "" ? Number(document.getElementById('f_dependants').value) : undefined,
+      email: document.getElementById('f_email').value.trim(),
+      contactNumber: document.getElementById('f_contactNumber').value.trim(),
+      address: document.getElementById('f_address').value.trim(),
+      bankAccount: document.getElementById('f_bankAccount').value.trim(),
+      skillset,
+    };
+    const hasPersonalDetail = Object.entries(personalPatch).some(([k,v]) => k==='skillset' ? v.length>0 : (v !== "" && v !== undefined));
+    if(hasPersonalDetail){
+      newTalent = await api.talents.updatePersonal(newTalent.id, personalPatch);
+    }
+
+    if(passIssueVal){
+      newTalent = await api.talents.updateWorkPass(newTalent.id, { passIssueDate: passIssueVal });
+    }
+
+    computeDerived(newTalent);
+    talents.unshift(newTalent);
+    closeAddModalFn();
+    sortKey = "lastName"; sortDir = 1; updateSortArrows();
+    page = 1;
+    renderStats();
+    renderTable();
+    showToast(`${newTalent.name} added`, checkIcon);
+  }catch(err){
+    showToast(`Failed to add talent: ${err.message}`, null);
   }
-  computeDerived(newTalent);
-  talents.unshift(newTalent);
-  closeAddModalFn();
-  sortKey = "lastName"; sortDir = 1; updateSortArrows();
-  page = 1;
-  renderStats();
-  renderTable();
-  showToast(`${newTalent.name} added to the table (temporary — not persisted)`, checkIcon);
 });
 
 /* ---------- Edit Slide-over ---------- */
@@ -1178,23 +1164,34 @@ document.getElementById('closeEditPanel').addEventListener('click', closeEditPan
 document.getElementById('cancelEditPanel').addEventListener('click', closeEditPanelFn);
 editOverlay.addEventListener('click', closeEditPanelFn);
 
-document.getElementById('editForm').addEventListener('submit', e=>{
+document.getElementById('editForm').addEventListener('submit', async e=>{
   e.preventDefault();
   const c = talents.find(x=>x.id === editingId);
   if(!c) return;
-  c.salary = Number(document.getElementById('e_salary').value);
-  c.chargeRate = Number(document.getElementById('e_chargeRate').value);
-  c.contractStart = new Date(document.getElementById('e_contractStart').value);
-  c.contractEnd = new Date(document.getElementById('e_contractEnd').value);
-  c.passExpiry = new Date(document.getElementById('e_passExpiry').value);
-  computeDerived(c);
-  closeEditPanelFn();
-  renderStats();
-  renderTable();
-  if(currentProfileId === c.id && !document.getElementById('view-profile').classList.contains('hidden')){
-    renderTalentProfile(c);
+  const salary = Number(document.getElementById('e_salary').value);
+  const chargeRate = Number(document.getElementById('e_chargeRate').value);
+  const contractStart = document.getElementById('e_contractStart').value;
+  const contractEnd = document.getElementById('e_contractEnd').value;
+  const passExpiry = document.getElementById('e_passExpiry').value;
+  try{
+    // Sequential (not Promise.all) so each response reflects every prior write — the last one
+    // is the authoritative merged state to apply locally.
+    await api.talents.updatePayroll(c.id, { salary });
+    await api.talents.updateBilling(c.id, { chargeRate });
+    await api.talents.updateContract(c.id, { contractStart, contractEnd });
+    const afterWorkPass = await api.talents.updateWorkPass(c.id, { passExpiry });
+    Object.assign(c, afterWorkPass);
+    computeDerived(c);
+    closeEditPanelFn();
+    renderStats();
+    renderTable();
+    if(currentProfileId === c.id && !document.getElementById('view-profile').classList.contains('hidden')){
+      renderTalentProfile(c);
+    }
+    showToast(`${c.name}'s record updated`, checkIcon);
+  }catch(err){
+    showToast(`Failed to update ${c.name}: ${err.message}`, null);
   }
-  showToast(`${c.name}'s record updated`, checkIcon);
 });
 
 /* ---------- Talent Profile (full page) ---------- */
@@ -1688,60 +1685,79 @@ function renderTalentProfile(c){
   });
 }
 
-function saveProfileTab(tabKey, c){
-  if(tabKey === 'personal'){
-    c.name = document.getElementById('p_name').value.trim() || c.name;
-    c.dateOfBirth = new Date(document.getElementById('p_dateOfBirth').value);
-    c.sex = document.getElementById('p_sex').value;
-    c.nationality = document.getElementById('p_nationality').value;
-    c.nric = document.getElementById('p_nric').value.trim();
-    c.maritalStatus = document.getElementById('p_maritalStatus').value;
-    c.dependants = Number(document.getElementById('p_dependants').value);
-    c.address = document.getElementById('p_address').value.trim();
-    c.contactNumber = document.getElementById('p_contactNumber').value.trim();
-    c.email = document.getElementById('p_email').value.trim();
-    c.bankAccount = document.getElementById('p_bankAccount').value.trim();
-  } else if(tabKey === 'workpass'){
-    c.nric = document.getElementById('p_nric_wp').value.trim();
-    c.workPassType = document.getElementById('p_workPassType').value;
-    const issueVal = document.getElementById('p_passIssueDate').value;
-    c.passIssueDate = issueVal ? new Date(issueVal) : null;
-    c.passExpiry = new Date(document.getElementById('p_passExpiry').value);
-    c.passStatus = document.getElementById('p_passStatus').value;
-    c.renewalStatus = document.getElementById('p_renewalStatus').value;
-    const passOverrideVal = document.getElementById('p_passLifecycleStatus').value;
-    c.passLifecycleStatus = passOverrideVal === "Automatic (based on expiry date)" ? "" : passOverrideVal;
+async function saveProfileTab(tabKey, c){
+  try{
+    let updated;
+    if(tabKey === 'personal'){
+      updated = await api.talents.updatePersonal(c.id, {
+        name: document.getElementById('p_name').value.trim() || c.name,
+        dateOfBirth: document.getElementById('p_dateOfBirth').value || null,
+        sex: document.getElementById('p_sex').value,
+        nationality: document.getElementById('p_nationality').value,
+        nric: document.getElementById('p_nric').value.trim(),
+        maritalStatus: document.getElementById('p_maritalStatus').value,
+        dependants: Number(document.getElementById('p_dependants').value),
+        address: document.getElementById('p_address').value.trim(),
+        contactNumber: document.getElementById('p_contactNumber').value.trim(),
+        email: document.getElementById('p_email').value.trim(),
+        bankAccount: document.getElementById('p_bankAccount').value.trim(),
+      });
+    } else if(tabKey === 'workpass'){
+      const issueVal = document.getElementById('p_passIssueDate').value;
+      const passOverrideVal = document.getElementById('p_passLifecycleStatus').value;
+      updated = await api.talents.updateWorkPass(c.id, {
+        workPassType: document.getElementById('p_workPassType').value,
+        passIssueDate: issueVal || null,
+        passExpiry: document.getElementById('p_passExpiry').value,
+        passStatus: document.getElementById('p_passStatus').value,
+        renewalStatus: document.getElementById('p_renewalStatus').value,
+        passLifecycleStatus: passOverrideVal === "Automatic (based on expiry date)" ? "" : passOverrideVal,
+      });
+      c.nric = document.getElementById('p_nric_wp').value.trim();
+      if(c.nric) await api.talents.updatePersonal(c.id, { nric: c.nric });
+    } else if(tabKey === 'insurance'){
+      const issueVal = document.getElementById('p_policyIssueDate').value;
+      const expVal = document.getElementById('p_policyExpiry').value;
+      updated = await api.talents.updateInsurance(c.id, {
+        policyType: document.getElementById('p_policyType').value,
+        policyIssueDate: issueVal || null,
+        policyExpiry: expVal || null,
+        policyRenewalStatus: document.getElementById('p_policyRenewalStatus').value,
+        policyRemarks: document.getElementById('p_policyRemarks').value.trim(),
+      });
+    } else if(tabKey === 'billing'){
+      updated = await api.talents.updateBilling(c.id, {
+        billingType: document.getElementById('p_billingType').value,
+        invoiceStatus: document.getElementById('p_invoiceStatus').value,
+      });
+    }
+    Object.assign(c, updated);
     computeDerived(c);
-  } else if(tabKey === 'insurance'){
-    c.policyType = document.getElementById('p_policyType').value;
-    const issueVal = document.getElementById('p_policyIssueDate').value;
-    c.policyIssueDate = issueVal ? new Date(issueVal) : null;
-    const expVal = document.getElementById('p_policyExpiry').value;
-    c.policyExpiry = expVal ? new Date(expVal) : null;
-    c.policyRenewalStatus = document.getElementById('p_policyRenewalStatus').value;
-    c.policyRemarks = document.getElementById('p_policyRemarks').value.trim();
-    computeDerived(c);
-  } else if(tabKey === 'billing'){
-    c.billingType = document.getElementById('p_billingType').value;
-    c.invoiceStatus = document.getElementById('p_invoiceStatus').value;
+    profileEditingTabs.delete(tabKey);
+    renderTalentProfile(c);
+    renderStats();
+    renderTable();
+    showToast(`${c.name}'s profile updated`, checkIcon);
+  }catch(err){
+    showToast(`Failed to update ${c.name}: ${err.message}`, null);
   }
-  profileEditingTabs.delete(tabKey);
-  renderTalentProfile(c);
-  renderStats();
-  renderTable();
-  showToast(`${c.name}'s profile updated`, checkIcon);
 }
 
-function removeTalent(c){
+async function removeTalent(c){
   const confirmed = confirm(`Remove ${c.name} from the talent list? This cannot be undone.`);
   if(!confirmed) return;
-  talents = talents.filter(x=>x.id !== c.id);
-  currentProfileId = null;
-  renderStats();
-  page = 1;
-  renderTable();
-  switchView('talents');
-  showToast(`${c.name} was removed`, checkIcon);
+  try{
+    await api.talents.remove(c.id);
+    talents = talents.filter(x=>x.id !== c.id);
+    currentProfileId = null;
+    renderStats();
+    page = 1;
+    renderTable();
+    switchView('talents');
+    showToast(`${c.name} was removed`, checkIcon);
+  }catch(err){
+    showToast(`Failed to remove ${c.name}: ${err.message}`, null);
+  }
 }
 
 document.getElementById('backToTalents').addEventListener('click', ()=> switchView(profileReturnView));
@@ -1916,13 +1932,14 @@ profileInfoModalOverlay.addEventListener('click', ()=>{
   profileInfoModalOverlay.classList.remove('open');
   profileInfoModal.classList.remove('open');
 });
-document.getElementById('logoutBtn').addEventListener('click', ()=>{
+document.getElementById('logoutBtn').addEventListener('click', async ()=>{
   closeAllDropdowns();
-  showToast("Logged out (mockup only — no real session to end).");
+  await api.auth.logout();
+  window.location.href = '/login.html';
 });
 
 /* ---------- HOME ---------- */
-const currentUserFirstName = "Natasha";
+let currentUserFirstName = "there"; // replaced with the real logged-in user's name at bootstrap
 let typewriterTimer = null;
 function typewriterGreeting(){
   const el = document.getElementById('homeGreeting');
@@ -1975,10 +1992,12 @@ function homeTrend(pct, vsLabel){
   return `<div class="text-[11px] font-semibold mt-1" style="color:${color}">${arrow} ${Math.abs(pct).toFixed(1)}% ${vsLabel||''}</div>`;
 }
 
-/* Stable trend percentages for count-based KPIs (no real historical snapshot exists for these) */
+/* No real historical snapshots exist yet (see Phase 5 of the build plan), so KPI trend badges
+   are intentionally omitted rather than faked. Real trend data appears once monthly snapshots
+   have accumulated real history. */
 const homeKpiTrends = {};
 ["activeTalents","pendingStart","onNotice","expiringPasses","expiringContracts","pendingSOW","pendingPO","pendingTimesheets","pendingInvoices"].forEach(k=>{
-  homeKpiTrends[k] = Math.round((Math.random()*30 - 12) * 10) / 10;
+  homeKpiTrends[k] = null;
 });
 
 let homeMonthOffset = 0; // 0 = current month, up to 5 = 5 months ago
@@ -2001,66 +2020,22 @@ function initHomeMonthFilter(){
   });
 }
 
-function renderHomeGpChart(monthIdx){
-  const months = 6;
-  const startIdx = Math.max(0, monthIdx - months + 1);
-  const dates = monthDates.slice(startIdx, monthIdx+1);
-  const totals = dates.map((d,i)=>{
-    const idx = startIdx + i;
-    return clients.reduce((s,cl)=> s + clientHistory[cl].grossProfit[idx], 0);
-  });
-
-  const w = 560, h = 220, padX = 14, padY = 18;
-  const minV = Math.min(...totals), maxV = Math.max(...totals);
-  const spread = (maxV - minV) || 1;
-  const points = totals.map((v,i)=>{
-    const x = totals.length>1 ? padX + (i/(totals.length-1))*(w-2*padX) : w/2;
-    const y = h - padY - ((v-minV)/spread)*(h-2*padY);
-    return [x,y];
-  });
-  const pathD = points.map((p,i)=> (i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
-  const areaD = `${pathD} L${points[points.length-1][0].toFixed(1)},${h-padY} L${points[0][0].toFixed(1)},${h-padY} Z`;
-  const labels = dates.map(d=>d.toLocaleDateString('en-SG',{month:'short', year:'numeric'}));
-
+function renderHomeGpChart(){
+  // No fake history: real monthly snapshots only start accumulating once the app has been live
+  // for a while (see Phase 5 of the build plan). Show an honest placeholder instead of invented trend data.
   document.getElementById('homeRevenueChart').innerHTML = `
-    <svg viewBox="0 0 ${w} ${h}" id="homeRevSvg" style="width:100%;height:220px;display:block;cursor:crosshair;">
-      <path d="${areaD}" fill="var(--green-bg)" opacity="0.9"/>
-      <path d="${pathD}" fill="none" stroke="var(--green-dot)" stroke-width="2.5"/>
-      ${points.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="var(--green-dot)" stroke="#fff" stroke-width="1.5"/>`).join('')}
-      <circle id="homeRevHoverDot" cx="0" cy="0" r="5" fill="var(--green-dot)" stroke="#fff" stroke-width="2" style="display:none;"/>
-    </svg>
-    <div class="flex justify-between text-[11px] text-[var(--muted)] mt-1 px-1">
-      ${labels.map(l=>`<span>${l}</span>`).join('')}
+    <div class="flex items-center justify-center text-center text-sm text-[var(--muted)]" style="height:220px;">
+      Monthly revenue/cost trend will appear here once a few months of real data have been recorded.
     </div>`;
-
-  const container = document.getElementById('homeRevenueChart');
-  const tooltip = document.createElement('div');
-  tooltip.id = 'homeRevTooltip';
-  tooltip.className = 'hidden absolute bg-white border border-[var(--border)] rounded-lg shadow-lg px-3 py-2 pointer-events-none z-10';
-  container.style.position = 'relative';
-  container.appendChild(tooltip);
-
-  const svgEl = document.getElementById('homeRevSvg');
-  const hoverDot = document.getElementById('homeRevHoverDot');
-  svgEl.addEventListener('mousemove', e=>{
-    const rect = svgEl.getBoundingClientRect();
-    const scaleX = w / rect.width;
-    const mouseX = (e.clientX - rect.left) * scaleX;
-    let nearest = 0, minDist = Infinity;
-    points.forEach((p,i)=>{ const d = Math.abs(p[0]-mouseX); if(d<minDist){ minDist=d; nearest=i; } });
-    const p = points[nearest];
-    hoverDot.setAttribute('cx', p[0]); hoverDot.setAttribute('cy', p[1]); hoverDot.style.display = 'block';
-    const pxPerUnitX = rect.width / w, pxPerUnitY = rect.height / h;
-    tooltip.style.left = Math.min(Math.max(p[0]*pxPerUnitX - 55, 0), rect.width-120) + 'px';
-    tooltip.style.top = Math.max(p[1]*pxPerUnitY - 60, 0) + 'px';
-    tooltip.innerHTML = `<div class="text-[11px] text-[var(--muted)]">${labels[nearest]}</div><div class="text-sm font-bold" style="color:var(--green-text)">${fmtMoney(Math.round(totals[nearest]))}</div>`;
-    tooltip.classList.remove('hidden');
-  });
-  svgEl.addEventListener('mouseleave', ()=>{ tooltip.classList.add('hidden'); hoverDot.style.display='none'; });
 }
 
-function renderHomeGpDonut(monthIdx){
-  const data = clients.map(cl=>({ client: cl, gp: clientHistory[cl].grossProfit[monthIdx] })).sort((a,b)=>b.gp-a.gp);
+function renderHomeGpDonut(){
+  // Computed live from real talent payroll/billing data (current month, no fake history).
+  const data = clients.map(cl=>{
+    const group = talents.filter(c=>c.client===cl);
+    const gp = group.reduce((s,c)=>s+computeTalentRevenue(c)-computeTotalPayrollCost(c),0);
+    return { client: cl, gp };
+  }).sort((a,b)=>b.gp-a.gp);
   const top = data.slice(0,5);
   const othersSum = data.slice(5).reduce((s,d)=>s+d.gp,0);
   if(othersSum > 0) top.push({ client:"Others", gp: othersSum });
@@ -2123,11 +2098,13 @@ function initGpBreakdownMonthFilter(){
 }
 
 function renderGpBreakdownTable(){
-  const monthIdx = HISTORY_MONTHS - 1 - gpBreakdownMonthOffset;
+  // Computed live from real talent payroll/billing data (current month only — no fake history;
+  // the month filter above is a no-op until real monthly snapshots exist, see Phase 5 of the build plan).
   const rows = clients.map(cl=>{
-    const revenue = clientHistory[cl].monthlyRevenue[monthIdx];
-    const cost = clientHistory[cl].monthlyCost[monthIdx];
-    const gp = clientHistory[cl].grossProfit[monthIdx];
+    const group = talents.filter(c=>c.client===cl);
+    const revenue = group.reduce((s,c)=>s+computeTalentRevenue(c),0);
+    const cost = group.reduce((s,c)=>s+computeTotalPayrollCost(c),0);
+    const gp = revenue - cost;
     const margin = revenue ? (gp/revenue*100) : 0;
     return { client: cl, revenue, cost, gp, margin };
   }).sort((a,b)=>b.gp-a.gp);
@@ -2169,20 +2146,20 @@ function closeGpBreakdownModalFn(){
 document.getElementById('closeGpBreakdownModal').addEventListener('click', closeGpBreakdownModalFn);
 gpBreakdownModalOverlay.addEventListener('click', closeGpBreakdownModalFn);
 
+let homeDashboardData = null; // fetched from GET /api/dashboard/home at bootstrap (see bootstrap())
+
 function renderHome(){
   typewriterGreeting();
   initHomeMonthFilter();
   const total = talents.length;
-  const monthIdx = HISTORY_MONTHS - 1 - homeMonthOffset;
-  const prevIdx = monthIdx - 1;
 
-  /* ---- Row 1: workforce & compliance ---- */
+  /* ---- Row 1: workforce & compliance (computed live from real talent data) ---- */
   const pendingStart = talents.filter(c=>c.contractStart > today).length;
   const onNotice = talents.filter(c=>c.contractDaysLeft >= 0 && c.contractDaysLeft <= 30).length;
   const activeTalents = total - pendingStart - talents.filter(c=>c.contractDaysLeft < 0).length;
   const expiringPasses = talents.filter(c=>c.passDaysLeft>=0 && c.passDaysLeft<=30).length;
   const expiringContracts = talents.filter(c=>c.contractDaysLeft>=0 && c.contractDaysLeft<=30).length;
-  const pendingSOWClients = clients.filter(cl=>clientBilling[cl].sowStatus !== "Signed").length;
+  const pendingSOW = homeDashboardData ? homeDashboardData.pendingSow : 0;
 
   document.getElementById('homeKpiRow1').innerHTML =
     homeCard("Total Active Talents", activeTalents, "var(--text)", "talents", homeTrend(homeKpiTrends.activeTalents, "vs last month")) +
@@ -2190,42 +2167,31 @@ function renderHome(){
     homeCard("On Notice", onNotice, "var(--orange-text)", "offboarding", homeTrend(homeKpiTrends.onNotice, "vs last month")) +
     homeCard("Expiring Work Passes", expiringPasses, "var(--red-text)", "workpass", `<div class="text-[11px] text-[var(--muted)] mt-1">&lt;30 days</div>`) +
     homeCard("Expiring Contracts", expiringContracts, "var(--red-text)", "contracts", `<div class="text-[11px] text-[var(--muted)] mt-1">&lt;30 days</div>`) +
-    homeCard("Pending SOW", pendingSOWClients, "var(--amber-text)", "analytics", homeTrend(homeKpiTrends.pendingSOW, "vs last month"));
+    homeCard("Pending SOW", pendingSOW, "var(--amber-text)", "analytics", homeTrend(homeKpiTrends.pendingSOW, "vs last month"));
 
-  /* ---- Row 2: pending actions & financials ---- */
-  const pendingPOClients = clients.filter(cl=>clientBilling[cl].poStatus !== "Received").length;
-  const pendingTimesheets = talents.filter(c=>c.timesheetSubmitted === "No").length;
-  const pendingInvoiceClients = clients.filter(cl=>["Pending","Issued"].includes(clientBilling[cl].invoiceStatus)).length;
-
-  const monthlyRevenue = clients.reduce((s,cl)=> s + clientHistory[cl].monthlyRevenue[monthIdx], 0);
-  const monthlyCost = clients.reduce((s,cl)=> s + clientHistory[cl].monthlyCost[monthIdx], 0);
-  const monthlyGp = monthlyRevenue - monthlyCost;
+  /* ---- Row 2: pending actions & financials (from the real /api/dashboard/home aggregates) ---- */
+  const pendingPO = homeDashboardData ? homeDashboardData.pendingPo : 0;
+  const pendingTimesheets = homeDashboardData ? homeDashboardData.pendingTimesheets : 0;
+  const pendingInvoices = homeDashboardData ? homeDashboardData.pendingInvoices : 0;
+  const monthlyRevenue = homeDashboardData ? homeDashboardData.monthlyRevenue : 0;
+  const monthlyCost = homeDashboardData ? homeDashboardData.monthlyCost : 0;
+  const monthlyGp = homeDashboardData ? homeDashboardData.monthlyGrossProfit : 0;
   const monthlyMargin = monthlyRevenue ? (monthlyGp/monthlyRevenue)*100 : 0;
 
-  let revTrend = null, costTrend = null, gpTrend = null;
-  if(prevIdx >= 0){
-    const prevRevenue = clients.reduce((s,cl)=> s + clientHistory[cl].monthlyRevenue[prevIdx], 0);
-    const prevCost = clients.reduce((s,cl)=> s + clientHistory[cl].monthlyCost[prevIdx], 0);
-    const prevGp = prevRevenue - prevCost;
-    revTrend = pctChange(monthlyRevenue, prevRevenue);
-    costTrend = pctChange(monthlyCost, prevCost);
-    gpTrend = pctChange(monthlyGp, prevGp);
-  }
-
   document.getElementById('homeKpiRow2').innerHTML =
-    homeCard("Pending PO", pendingPOClients, "var(--amber-text)", "analytics", homeTrend(homeKpiTrends.pendingPO, "vs last month")) +
+    homeCard("Pending PO", pendingPO, "var(--amber-text)", "analytics", homeTrend(homeKpiTrends.pendingPO, "vs last month")) +
     homeCard("Pending Timesheets", pendingTimesheets, "var(--amber-text)", "operations", homeTrend(homeKpiTrends.pendingTimesheets, "vs last month")) +
-    homeCard("Pending Invoices", pendingInvoiceClients, "var(--amber-text)", "analytics", homeTrend(homeKpiTrends.pendingInvoices, "vs last month")) +
-    homeCard("Monthly Revenue", fmtMoney(Math.round(monthlyRevenue)), "var(--text)", "finance", homeTrend(revTrend, "vs last month")) +
-    homeCard("Monthly Cost", fmtMoney(Math.round(monthlyCost)), "var(--text)", "finance", homeTrend(costTrend, "vs last month")) +
+    homeCard("Pending Invoices", pendingInvoices, "var(--amber-text)", "analytics", homeTrend(homeKpiTrends.pendingInvoices, "vs last month")) +
+    homeCard("Monthly Revenue", fmtMoney(Math.round(monthlyRevenue)), "var(--text)", "finance", homeTrend(null, "vs last month")) +
+    homeCard("Monthly Cost", fmtMoney(Math.round(monthlyCost)), "var(--text)", "finance", homeTrend(null, "vs last month")) +
     `<div class="rounded-lg px-4 py-3 cursor-pointer" style="background:var(--blue);" onclick="openGpBreakdownModal()">
       <div class="text-xs text-blue-100 mb-1" style="color:#DCEBFB;">Monthly GP</div>
       <div class="text-xl font-bold text-white whitespace-nowrap">${fmtMoney(Math.round(monthlyGp))}</div>
       <div class="text-[11px] mt-1" style="color:#DCEBFB;">${monthlyMargin.toFixed(1)}% Margin</div>
     </div>`;
 
-  renderHomeGpChart(monthIdx);
-  renderHomeGpDonut(monthIdx);
+  renderHomeGpChart();
+  renderHomeGpDonut();
 
   const approaching = talents.filter(c=>c.alert);
   renderHomeExpiryTable(approaching);
@@ -5996,7 +5962,31 @@ offboardEditForm.addEventListener('submit', e=>{
 });
 
 /* ---------- Init ---------- */
-renderStats();
-updateSortArrows();
-renderTable();
-switchView('talents');
+async function bootstrap(){
+  try{
+    const me = await api.auth.me();
+    currentUserFirstName = me.name || me.email;
+
+    const [talentsData, clientNames, dashboardData] = await Promise.all([
+      api.talents.list(),
+      api.lookups.clientNames(),
+      api.dashboard.home(),
+    ]);
+
+    talents = talentsData;
+    talents.forEach(computeDerived);
+    clients.length = 0;
+    clients.push(...clientNames);
+    homeDashboardData = dashboardData;
+  }catch(err){
+    if(err && err.status === 401) return; // api.js already redirected to /login.html
+    document.body.innerHTML = `<div class="p-8 text-sm" style="color:var(--red-text)">Failed to load the application: ${err.message}. Check that the server is running and try refreshing.</div>`;
+    return;
+  }
+
+  renderStats();
+  updateSortArrows();
+  renderTable();
+  switchView('talents');
+}
+bootstrap();
