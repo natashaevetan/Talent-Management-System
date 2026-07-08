@@ -53,6 +53,7 @@ const api = {
     login: (email, password) => request("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
     logout: () => request("/auth/logout", { method: "POST" }),
     me: () => request("/auth/me"),
+    changePassword: (currentPassword, newPassword) => request("/auth/change-password", { method: "POST", body: JSON.stringify({ currentPassword, newPassword }) }),
   },
   talents: {
     list: async () => (await request("/talents")).map(normalizeTalentDates),

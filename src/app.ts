@@ -1,5 +1,6 @@
 import express from "express";
 import session from "express-session";
+import helmet from "helmet";
 import { PrismaSessionStore } from "@quixo3/prisma-session-store";
 import path from "path";
 import { env } from "./config/env";
@@ -12,6 +13,29 @@ import { dashboardRouter } from "./modules/dashboard/router";
 
 export function createApp() {
   const app = express();
+
+  // Railway (and most PaaS hosts) put the app behind a reverse proxy — trust its
+  // X-Forwarded-* headers so secure cookies and req.ip work correctly.
+  if (env.nodeEnv === "production") app.set("trust proxy", 1);
+
+  app.use(
+    helmet({
+      // The frontend loads Tailwind/fonts/xlsx from CDNs and has inline <script> blocks
+      // (ported from the original single-file mockup), so a strict default-src would break
+      // the app. Scoped relaxations here instead of disabling CSP outright.
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com", "https://cdnjs.cloudflare.com"],
+          scriptSrcAttr: ["'unsafe-inline'"], // the mockup UI uses a handful of inline onclick="" handlers
+          styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+          fontSrc: ["'self'", "https://fonts.gstatic.com"],
+          imgSrc: ["'self'", "data:"],
+          connectSrc: ["'self'"],
+        },
+      },
+    })
+  );
 
   app.use(express.json());
   app.use(

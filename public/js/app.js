@@ -1921,6 +1921,14 @@ const profileInfoModalOverlay = document.getElementById('profileInfoModalOverlay
 const profileInfoModal = document.getElementById('profileInfoModal');
 document.getElementById('viewProfileBtn').addEventListener('click', ()=>{
   closeAllDropdowns();
+  if(currentUser){
+    document.getElementById('profileInfoName').textContent = currentUser.name;
+    document.getElementById('profileInfoEmail').textContent = currentUser.email;
+    document.getElementById('profileInfoAvatar').textContent = (currentUser.name||'?')[0].toUpperCase();
+  }
+  document.getElementById('cp_current').value = '';
+  document.getElementById('cp_new').value = '';
+  document.getElementById('cp_error').classList.add('hidden');
   profileInfoModalOverlay.classList.add('open');
   profileInfoModal.classList.add('open');
 });
@@ -1932,6 +1940,20 @@ profileInfoModalOverlay.addEventListener('click', ()=>{
   profileInfoModalOverlay.classList.remove('open');
   profileInfoModal.classList.remove('open');
 });
+document.getElementById('changePasswordForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const errorEl = document.getElementById('cp_error');
+  errorEl.classList.add('hidden');
+  try{
+    await api.auth.changePassword(document.getElementById('cp_current').value, document.getElementById('cp_new').value);
+    profileInfoModalOverlay.classList.remove('open');
+    profileInfoModal.classList.remove('open');
+    showToast("Password updated", checkIcon);
+  }catch(err){
+    errorEl.textContent = err.message;
+    errorEl.classList.remove('hidden');
+  }
+});
 document.getElementById('logoutBtn').addEventListener('click', async ()=>{
   closeAllDropdowns();
   await api.auth.logout();
@@ -1940,6 +1962,7 @@ document.getElementById('logoutBtn').addEventListener('click', async ()=>{
 
 /* ---------- HOME ---------- */
 let currentUserFirstName = "there"; // replaced with the real logged-in user's name at bootstrap
+let currentUser = null; // full { id, email, name, role } from GET /api/auth/me, set at bootstrap
 let typewriterTimer = null;
 function typewriterGreeting(){
   const el = document.getElementById('homeGreeting');
@@ -5966,6 +5989,11 @@ async function bootstrap(){
   try{
     const me = await api.auth.me();
     currentUserFirstName = me.name || me.email;
+    currentUser = me;
+    document.getElementById('profileDropdownName').textContent = me.name;
+    document.getElementById('profileDropdownEmail').textContent = me.email;
+    const initial = (me.name || me.email || '?')[0].toUpperCase();
+    document.getElementById('profileBtn').textContent = initial;
 
     const [talentsData, clientNames, dashboardData] = await Promise.all([
       api.talents.list(),

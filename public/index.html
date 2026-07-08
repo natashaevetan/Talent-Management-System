@@ -262,8 +262,8 @@
       <button id="profileBtn" class="w-8 h-8 rounded-full bg-[var(--blue-tint)] text-[var(--blue-dark)] flex items-center justify-center font-semibold text-xs">N</button>
       <div id="profileDropdown" class="hidden absolute right-0 top-10 w-64 bg-white border border-[var(--border)] rounded-lg shadow-xl z-40 overflow-hidden">
         <div class="px-4 py-3 border-b border-[var(--border)]">
-          <div class="font-semibold text-sm">Natasha</div>
-          <div class="text-xs text-[var(--muted)]">natasha@dynamichumancapital.com</div>
+          <div id="profileDropdownName" class="font-semibold text-sm">Natasha</div>
+          <div id="profileDropdownEmail" class="text-xs text-[var(--muted)]">natasha@dynamichumancapital.com</div>
         </div>
         <button id="viewProfileBtn" class="w-full text-left px-4 py-2.5 text-sm hover:bg-[#F8FAFC] flex items-center gap-2">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -2247,16 +2247,23 @@
   </div>
   <div class="px-6 py-5">
     <div class="flex items-center gap-3 mb-5">
-      <div class="w-12 h-12 rounded-full bg-[var(--blue-tint)] text-[var(--blue-dark)] flex items-center justify-center font-bold text-base">N</div>
+      <div id="profileInfoAvatar" class="w-12 h-12 rounded-full bg-[var(--blue-tint)] text-[var(--blue-dark)] flex items-center justify-center font-bold text-base">N</div>
       <div>
-        <div class="font-semibold text-base">Natasha</div>
-        <div class="text-xs text-[var(--muted)]">natasha@dynamichumancapital.com</div>
+        <div id="profileInfoName" class="font-semibold text-base">Natasha</div>
+        <div id="profileInfoEmail" class="text-xs text-[var(--muted)]">natasha@dynamichumancapital.com</div>
       </div>
     </div>
-    <dl class="text-sm space-y-2.5">
-      <div class="flex justify-between gap-4"><dt class="text-[var(--muted)]">Contact Number</dt><dd class="font-medium text-right">+65 9123 4567</dd></div>
-      <div class="flex justify-between gap-4"><dt class="text-[var(--muted)]">Last Login</dt><dd class="font-medium text-right">02 Jul 2026, 09:41 AM</dd></div>
-    </dl>
+    <form id="changePasswordForm" class="border-t border-[var(--border)] pt-4 space-y-3">
+      <div class="text-sm font-semibold">Change Password</div>
+      <div>
+        <input required id="cp_current" type="password" autocomplete="current-password" class="filter-input" placeholder="Current password" />
+      </div>
+      <div>
+        <input required minlength="8" id="cp_new" type="password" autocomplete="new-password" class="filter-input" placeholder="New password (min. 8 characters)" />
+      </div>
+      <div id="cp_error" class="hidden text-xs rounded-lg px-3 py-2" style="background:var(--red-bg);color:var(--red-text)"></div>
+      <button type="submit" class="w-full rounded-lg py-2 text-sm font-semibold text-white" style="background:var(--blue)">Update Password</button>
+    </form>
   </div>
 </div>
 
