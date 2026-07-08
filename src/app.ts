@@ -6,6 +6,9 @@ import { env } from "./config/env";
 import { prisma } from "./lib/prisma";
 import { errorHandler } from "./middleware/errorHandler";
 import { authRouter } from "./modules/auth/router";
+import { talentsRouter } from "./modules/talents/router";
+import { lookupsRouter } from "./modules/lookups/router";
+import { dashboardRouter } from "./modules/dashboard/router";
 
 export function createApp() {
   const app = express();
@@ -31,6 +34,9 @@ export function createApp() {
   );
 
   app.use("/api/auth", authRouter);
+  app.use("/api/talents", talentsRouter);
+  app.use("/api/lookups", lookupsRouter);
+  app.use("/api/dashboard", dashboardRouter);
 
   app.use(express.static(path.join(__dirname, "..", "public")));
 
