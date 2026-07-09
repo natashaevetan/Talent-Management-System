@@ -1919,6 +1919,52 @@ profileDropdown.addEventListener('click', e=> e.stopPropagation());
 
 const profileInfoModalOverlay = document.getElementById('profileInfoModalOverlay');
 const profileInfoModal = document.getElementById('profileInfoModal');
+
+/* Password policy: min 8 chars, at least one lowercase, one uppercase, one number,
+   one special character. Mirrors the server-side check in /api/auth/change-password
+   so the UI never promises acceptance the backend would reject. */
+function evaluatePassword(pw){
+  return {
+    length: pw.length >= 8,
+    lower: /[a-z]/.test(pw),
+    upper: /[A-Z]/.test(pw),
+    number: /[0-9]/.test(pw),
+    special: /[^A-Za-z0-9]/.test(pw),
+  };
+}
+function passwordStrength(rules){
+  const metCount = Object.values(rules).filter(Boolean).length;
+  if(metCount <= 2) return { label: 'Weak', color: 'var(--red-dot)', textColor: 'var(--red-text)', pct: 20 };
+  if(metCount <= 4) return { label: 'Moderate', color: 'var(--amber-dot)', textColor: 'var(--amber-text)', pct: 60 };
+  return { label: 'Strong', color: 'var(--green-dot)', textColor: 'var(--green-text)', pct: 100 };
+}
+function updatePasswordChecklist(){
+  const pw = document.getElementById('cp_new').value;
+  const rules = evaluatePassword(pw);
+  document.querySelectorAll('#cp_criteria li[data-rule]').forEach(li=>{
+    const met = rules[li.dataset.rule];
+    li.style.color = met ? 'var(--green-text)' : 'var(--muted)';
+    li.textContent = (met ? '✓ ' : '○ ') + li.textContent.slice(2);
+  });
+  const allMet = Object.values(rules).every(Boolean);
+  const bar = document.getElementById('cp_strengthBar');
+  const label = document.getElementById('cp_strengthLabel');
+  if(pw.length === 0){
+    bar.style.width = '0%';
+    label.textContent = ' ';
+  } else {
+    const s = passwordStrength(rules);
+    bar.style.width = s.pct + '%';
+    bar.style.background = s.color;
+    label.textContent = s.label;
+    label.style.color = s.textColor;
+  }
+  const current = document.getElementById('cp_current').value;
+  document.getElementById('cp_submitBtn').disabled = !(allMet && current.length > 0);
+}
+document.getElementById('cp_new').addEventListener('input', updatePasswordChecklist);
+document.getElementById('cp_current').addEventListener('input', updatePasswordChecklist);
+
 document.getElementById('viewProfileBtn').addEventListener('click', ()=>{
   closeAllDropdowns();
   if(currentUser){
@@ -1929,6 +1975,13 @@ document.getElementById('viewProfileBtn').addEventListener('click', ()=>{
   document.getElementById('cp_current').value = '';
   document.getElementById('cp_new').value = '';
   document.getElementById('cp_error').classList.add('hidden');
+  document.querySelectorAll('#cp_criteria li[data-rule]').forEach(li=>{
+    li.style.color = 'var(--muted)';
+    li.textContent = '○ ' + li.textContent.slice(2);
+  });
+  document.getElementById('cp_strengthBar').style.width = '0%';
+  document.getElementById('cp_strengthLabel').textContent = ' ';
+  document.getElementById('cp_submitBtn').disabled = true;
   profileInfoModalOverlay.classList.add('open');
   profileInfoModal.classList.add('open');
 });
@@ -1944,6 +1997,8 @@ document.getElementById('changePasswordForm').addEventListener('submit', async e
   e.preventDefault();
   const errorEl = document.getElementById('cp_error');
   errorEl.classList.add('hidden');
+  const submitBtn = document.getElementById('cp_submitBtn');
+  submitBtn.disabled = true;
   try{
     await api.auth.changePassword(document.getElementById('cp_current').value, document.getElementById('cp_new').value);
     profileInfoModalOverlay.classList.remove('open');
@@ -1952,6 +2007,7 @@ document.getElementById('changePasswordForm').addEventListener('submit', async e
   }catch(err){
     errorEl.textContent = err.message;
     errorEl.classList.remove('hidden');
+    submitBtn.disabled = false;
   }
 });
 document.getElementById('logoutBtn').addEventListener('click', async ()=>{

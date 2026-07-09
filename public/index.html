@@ -2253,16 +2253,29 @@
         <div id="profileInfoEmail" class="text-xs text-[var(--muted)]">natasha@dynamichumancapital.com</div>
       </div>
     </div>
-    <form id="changePasswordForm" class="border-t border-[var(--border)] pt-4 space-y-3">
+    <form id="changePasswordForm" class="border-t border-[var(--border)] pt-4 space-y-3" novalidate>
       <div class="text-sm font-semibold">Change Password</div>
       <div>
         <input required id="cp_current" type="password" autocomplete="current-password" class="filter-input" placeholder="Current password" />
       </div>
       <div>
-        <input required minlength="8" id="cp_new" type="password" autocomplete="new-password" class="filter-input" placeholder="New password (min. 8 characters)" />
+        <input required id="cp_new" type="password" autocomplete="new-password" class="filter-input" placeholder="New password" />
       </div>
+      <div>
+        <div class="h-1.5 rounded-full bg-[#EEF0F2] overflow-hidden">
+          <div id="cp_strengthBar" class="h-full rounded-full transition-all" style="width:0%;background:var(--red-dot)"></div>
+        </div>
+        <div id="cp_strengthLabel" class="text-xs font-medium mt-1" style="color:var(--muted)">&nbsp;</div>
+      </div>
+      <ul id="cp_criteria" class="text-xs space-y-1">
+        <li data-rule="length" class="flex items-center gap-1.5" style="color:var(--muted)">○ At least 8 characters</li>
+        <li data-rule="lower" class="flex items-center gap-1.5" style="color:var(--muted)">○ One lowercase letter</li>
+        <li data-rule="upper" class="flex items-center gap-1.5" style="color:var(--muted)">○ One uppercase letter</li>
+        <li data-rule="number" class="flex items-center gap-1.5" style="color:var(--muted)">○ One number</li>
+        <li data-rule="special" class="flex items-center gap-1.5" style="color:var(--muted)">○ One special character (e.g. ! @ # $ %)</li>
+      </ul>
       <div id="cp_error" class="hidden text-xs rounded-lg px-3 py-2" style="background:var(--red-bg);color:var(--red-text)"></div>
-      <button type="submit" class="w-full rounded-lg py-2 text-sm font-semibold text-white" style="background:var(--blue)">Update Password</button>
+      <button type="submit" id="cp_submitBtn" disabled class="w-full rounded-lg py-2 text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed" style="background:var(--blue)">Update Password</button>
     </form>
   </div>
 </div>

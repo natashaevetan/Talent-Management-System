@@ -4,6 +4,7 @@ import rateLimit from "express-rate-limit";
 import { prisma } from "../../lib/prisma";
 import { asyncHandler } from "../../middleware/errorHandler";
 import { requireAuth } from "../../middleware/requireAuth";
+import { passwordPolicyError } from "../../lib/passwordPolicy";
 
 export const authRouter = Router();
 
@@ -75,8 +76,9 @@ authRouter.post(
       res.status(400).json({ error: "currentPassword and newPassword are required" });
       return;
     }
-    if (newPassword.length < 8) {
-      res.status(400).json({ error: "New password must be at least 8 characters" });
+    const policyError = passwordPolicyError(newPassword);
+    if (policyError) {
+      res.status(400).json({ error: policyError });
       return;
     }
 
