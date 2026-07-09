@@ -2912,41 +2912,35 @@ document.getElementById('closeContractModal').addEventListener('click', closeCon
 document.getElementById('cancelContractModal').addEventListener('click', closeContractEditModalFn);
 contractModalOverlay.addEventListener('click', closeContractEditModalFn);
 
-document.getElementById('contractEditForm').addEventListener('submit', e=>{
+document.getElementById('contractEditForm').addEventListener('submit', async e=>{
   e.preventDefault();
   const c = talents.find(x=>x.id === editingContractId);
   if(!c) return;
-  const oldRenewalStatus = c.contractRenewalStatus;
-  const newContractStart = new Date(document.getElementById('ce_contractStart').value);
-  const newContractEnd = new Date(document.getElementById('ce_contractEnd').value);
-  const datesChanged = c.contractStart.getTime() !== newContractStart.getTime() || c.contractEnd.getTime() !== newContractEnd.getTime();
-
-  c.contractStatus = document.getElementById('ce_contractStatus').value;
-  c.contractStart = newContractStart;
-  c.contractEnd = newContractEnd;
-  c.noticePeriod = document.getElementById('ce_noticePeriod').value;
-  c.contractUpload = document.getElementById('ce_contractUpload').value;
-  c.signedContractUpload = document.getElementById('ce_signedContractUpload').value;
-  c.contractRenewalRequired = document.getElementById('ce_renewalRequired').value;
-  const newRenewalStatus = document.getElementById('ce_renewalStatus').value;
-  // Mark "just completed" before recording any dates change, so that dates edited in the
-  // same save (e.g. alongside marking the renewal Completed) count as already reflecting it.
-  if(newRenewalStatus === "Completed" && oldRenewalStatus !== "Completed"){
-    c.renewalCompletedSeq = ++renewalActionSeq;
+  const payload = {
+    contractStatus: document.getElementById('ce_contractStatus').value,
+    contractStart: document.getElementById('ce_contractStart').value,
+    contractEnd: document.getElementById('ce_contractEnd').value,
+    noticePeriod: document.getElementById('ce_noticePeriod').value,
+    contractUpload: document.getElementById('ce_contractUpload').value,
+    signedContractUpload: document.getElementById('ce_signedContractUpload').value,
+    contractRenewalRequired: document.getElementById('ce_renewalRequired').value,
+    contractRenewalStatus: document.getElementById('ce_renewalStatus').value,
+    remarks: document.getElementById('ce_remarks').value.trim(),
+    contractLifecycleStatus: document.getElementById('ce_lifecycleStatus').value,
+  };
+  try{
+    const updated = await api.talents.updateContract(c.id, payload);
+    Object.assign(c, updated);
+    computeDerived(c);
+    closeContractEditModalFn();
+    renderContracts();
+    renderRenewalContract();
+    renderStats();
+    refreshProfileIfOpen(c);
+    showToast(`${c.name}'s contract details updated`, checkIcon);
+  }catch(err){
+    showToast(`Failed to update contract: ${err.message}`, null);
   }
-  c.contractRenewalStatus = newRenewalStatus;
-  if(datesChanged){
-    c.datesUpdatedSeq = ++renewalActionSeq;
-  }
-  c.remarks = document.getElementById('ce_remarks').value.trim();
-  c.contractLifecycleStatus = document.getElementById('ce_lifecycleStatus').value;
-  computeDerived(c);
-  closeContractEditModalFn();
-  renderContracts();
-  renderRenewalContract();
-  renderStats();
-  refreshProfileIfOpen(c);
-  showToast(`${c.name}'s contract details updated`, checkIcon);
 });
 
 /* ---------- Renew Work Pass / Contract Modal ---------- */
@@ -2993,39 +2987,33 @@ document.getElementById('closeRenewModal').addEventListener('click', closeRenewM
 document.getElementById('cancelRenewModal').addEventListener('click', closeRenewModalFn);
 renewModalOverlay.addEventListener('click', closeRenewModalFn);
 
-document.getElementById('renewForm').addEventListener('submit', e=>{
+document.getElementById('renewForm').addEventListener('submit', async e=>{
   e.preventDefault();
   const c = talents.find(x=>x.id === renewingId);
   const type = renewingType;
   if(!c || !type) return;
-  const newDate = new Date(document.getElementById('renew_newDate').value);
+  const newDate = document.getElementById('renew_newDate').value;
   const status = document.getElementById('renew_status').value;
-
-  if(type === 'workpass'){
-    c.passIssueDate = today;
-    c.passExpiry = newDate;
-    c.passStatus = "Active";
-    c.renewalRequired = "No";
-    c.renewalStatus = status;
-  } else {
-    const oldRenewalStatus = c.contractRenewalStatus;
-    const datesChanged = c.contractEnd.getTime() !== newDate.getTime();
-    c.contractEnd = newDate;
-    if(c.contractStatus === "Expired" || c.contractStatus === "Terminated") c.contractStatus = "Signed";
-    c.contractRenewalRequired = "No";
-    if(status === "Completed" && oldRenewalStatus !== "Completed"){
-      c.renewalCompletedSeq = ++renewalActionSeq;
+  try{
+    let updated;
+    if(type === 'workpass'){
+      updated = await api.talents.updateWorkPass(c.id, {
+        passIssueDate: toISO(today), passExpiry: newDate, passStatus: 'Issued', renewalRequired: 'No', renewalStatus: status,
+      });
+    } else {
+      updated = await api.talents.updateContract(c.id, {
+        contractEnd: newDate, contractRenewalRequired: 'No', contractRenewalStatus: status,
+      });
     }
-    c.contractRenewalStatus = status;
-    if(datesChanged){
-      c.datesUpdatedSeq = ++renewalActionSeq;
-    }
+    Object.assign(c, updated);
+    computeDerived(c);
+    closeRenewModalFn();
+    if(type === 'workpass'){ renderWorkPass(); } else { renderContracts(); renderStats(); }
+    refreshProfileIfOpen(c);
+    showToast(`${c.name}'s ${type === 'workpass' ? 'work pass' : 'contract'} has been renewed`, checkIcon);
+  }catch(err){
+    showToast(`Failed to renew: ${err.message}`, null);
   }
-  computeDerived(c);
-  closeRenewModalFn();
-  if(type === 'workpass'){ renderWorkPass(); } else { renderContracts(); renderStats(); }
-  refreshProfileIfOpen(c);
-  showToast(`${c.name}'s ${type === 'workpass' ? 'work pass' : 'contract'} has been renewed`, checkIcon);
 });
 
 /* ---------- FINANCE, BILLING & COMMERCIAL ---------- */
@@ -4768,15 +4756,19 @@ renewalUpdateModalOverlay.addEventListener('click', ()=>{
   if(renewalUpdateModalOverlay.classList.contains('open')) closeRenewalUpdateModalFn();
 });
 
-document.getElementById('renewalUpdateForm').addEventListener('submit', e=>{
+document.getElementById('renewalUpdateForm').addEventListener('submit', async e=>{
   e.preventDefault();
   const isSow = editingRenewalUpdateType === 'sow';
   const isPo = editingRenewalUpdateType === 'po';
-  const newStart = new Date(document.getElementById('ru_startDate').value);
-  const newEnd = new Date(document.getElementById('ru_endDate').value);
+  const newStartVal = document.getElementById('ru_startDate').value;
+  const newEndVal = document.getElementById('ru_endDate').value;
   const newStatus = document.getElementById('ru_renewalStatus').value;
 
   if(isSow || isPo){
+    // SOW/PO Tracking is not yet wired to the live database (planned for a later phase) —
+    // this still only updates the in-memory mock arrays.
+    const newStart = new Date(newStartVal);
+    const newEnd = new Date(newEndVal);
     const r = isSow ? sowRecords[editingRenewalUpdateId] : poRecords[editingRenewalUpdateId];
     if(!r) return;
     const statusKey = isSow ? 'sowStatus' : 'poStatus';
@@ -4798,7 +4790,7 @@ document.getElementById('renewalUpdateForm').addEventListener('submit', e=>{
     r.remarks = document.getElementById('ru_remarks').value.trim();
     closeRenewalUpdateModalFn();
     if(isSow){ renderRenewalSow(); renderSowTable(); } else { renderRenewalPo(); renderPoTable(); }
-    showToast(`${r.client}${isSow ? ' – '+r.project : ''}'s status updated`, checkIcon);
+    showToast(`${r.client}${isSow ? " " + String.fromCharCode(8211) + " " + r.project : ""}'s status updated`, checkIcon);
     return;
   }
 
@@ -4806,66 +4798,35 @@ document.getElementById('renewalUpdateForm').addEventListener('submit', e=>{
   if(!c) return;
   const isWorkpass = editingRenewalUpdateType === 'workpass';
   const isInsurance = editingRenewalUpdateType === 'insurance';
-  const newRenewalStatus = newStatus;
+  const remarks = document.getElementById('ru_remarks').value.trim();
 
-  if(isInsurance){
-    const oldRenewalStatus = c.policyRenewalStatus;
-    const datesChanged = (c.policyIssueDate ? c.policyIssueDate.getTime() : NaN) !== newStart.getTime() || (c.policyExpiry ? c.policyExpiry.getTime() : NaN) !== newEnd.getTime();
-    c.policyIssueDate = newStart;
-    c.policyExpiry = newEnd;
-    if(newRenewalStatus === "Completed" && oldRenewalStatus !== "Completed"){
-      c.policyRenewalCompletedSeq = ++renewalActionSeq;
+  try{
+    let updated;
+    if(isInsurance){
+      updated = await api.talents.updateInsurance(c.id, {
+        policyIssueDate: newStartVal, policyExpiry: newEndVal, policyRenewalStatus: newStatus, policyRemarks: remarks,
+      });
+    } else if(isWorkpass){
+      updated = await api.talents.updateWorkPass(c.id, {
+        passIssueDate: newStartVal, passExpiry: newEndVal, renewalStatus: newStatus, passRenewalRemarks: remarks,
+      });
+    } else {
+      updated = await api.talents.updateContract(c.id, {
+        contractStart: newStartVal, contractEnd: newEndVal, contractRenewalStatus: newStatus, renewalRemarks: remarks,
+      });
     }
-    c.policyRenewalStatus = newRenewalStatus;
-    if(datesChanged){
-      c.policyDatesUpdatedSeq = ++renewalActionSeq;
-    }
-    c.policyRenewalRequired = c.policyExpiry <= addDays(today, 90) ? "Yes" : "No";
-    c.policyRemarks = document.getElementById('ru_remarks').value.trim();
-  } else if(isWorkpass){
-    const oldRenewalStatus = c.renewalStatus;
-    const datesChanged = c.passIssueDate.getTime() !== newStart.getTime() || c.passExpiry.getTime() !== newEnd.getTime();
-    c.passIssueDate = newStart;
-    c.passExpiry = newEnd;
-    // Mark "just completed" before recording the dates change, so dates edited in the same
-    // save as marking the renewal Completed count as already reflecting it (no stale alert).
-    if(newRenewalStatus === "Completed" && oldRenewalStatus !== "Completed"){
-      c.passRenewalCompletedSeq = ++renewalActionSeq;
-    }
-    c.renewalStatus = newRenewalStatus;
-    if(datesChanged){
-      c.passDatesUpdatedSeq = ++renewalActionSeq;
-    }
-    if(c.passStatus === "Expired" && c.passExpiry > today) c.passStatus = "Issued";
-    c.renewalRequired = c.passExpiry <= addDays(today, 90) ? "Yes" : "No";
-    c.passRenewalRemarks = document.getElementById('ru_remarks').value.trim();
-  } else {
-    const oldRenewalStatus = c.contractRenewalStatus;
-    const datesChanged = c.contractStart.getTime() !== newStart.getTime() || c.contractEnd.getTime() !== newEnd.getTime();
-    c.contractStart = newStart;
-    c.contractEnd = newEnd;
-    if(newRenewalStatus === "Completed" && oldRenewalStatus !== "Completed"){
-      c.renewalCompletedSeq = ++renewalActionSeq;
-    }
-    c.contractRenewalStatus = newRenewalStatus;
-    if(datesChanged){
-      c.datesUpdatedSeq = ++renewalActionSeq;
-    }
-    if(c.contractStatus === "Expired" || c.contractStatus === "Terminated"){
-      if(c.contractEnd > today) c.contractStatus = "Signed";
-    }
-    c.contractRenewalRequired = c.contractEnd <= addDays(today, 90) ? "Yes" : "No";
-    c.renewalRemarks = document.getElementById('ru_remarks').value.trim();
+    Object.assign(c, updated);
+    computeDerived(c);
+    closeRenewalUpdateModalFn();
+    if(isInsurance){ renderPolicyTable(); }
+    else if(isWorkpass){ renderRenewalWorkpass(); renderWorkPass(); }
+    else { renderRenewalContract(); renderContracts(); }
+    renderStats();
+    refreshProfileIfOpen(c);
+    showToast(`${c.name}'s renewal details updated`, checkIcon);
+  }catch(err){
+    showToast(`Failed to update renewal details: ${err.message}`, null);
   }
-
-  computeDerived(c);
-  closeRenewalUpdateModalFn();
-  if(isInsurance){ renderPolicyTable(); }
-  else if(isWorkpass){ renderRenewalWorkpass(); renderWorkPass(); }
-  else { renderRenewalContract(); renderContracts(); }
-  renderStats();
-  refreshProfileIfOpen(c);
-  showToast(`${c.name}'s renewal details updated`, checkIcon);
 });
 
 /* ---------- Manage Talents Modal (SOW & PO Renewals: view/edit the talents tied to a record) ---------- */
@@ -5202,37 +5163,36 @@ document.getElementById('closeRenewalNoticeModal').addEventListener('click', clo
 document.getElementById('cancelRenewalNoticeModal').addEventListener('click', closeRenewalNoticeModalFn);
 renewalNoticeModalOverlay.addEventListener('click', closeRenewalNoticeModalFn);
 
-document.getElementById('renewalNoticeForm').addEventListener('submit', e=>{
+document.getElementById('renewalNoticeForm').addEventListener('submit', async e=>{
   e.preventDefault();
   if(!renewalNoticeContext) return;
   const { type, ref } = renewalNoticeContext;
   const toLine = document.getElementById('renewalNoticeTo').value;
 
-  if(type === 'contract'){
-    const c = talents.find(x=>x.id===ref);
-    c.contractNoticeSent = true;
-    if(c.contractRenewalStatus === "Not Started") c.contractRenewalStatus = "In Progress";
-    c.contractRenewalRequired = "Yes";
-    refreshProfileIfOpen(c);
-  } else if(type === 'workpass'){
-    const c = talents.find(x=>x.id===ref);
-    c.workPassNoticeSent = true;
-    if(c.renewalStatus === "Not Started") c.renewalStatus = "In Progress";
-    c.renewalRequired = "Yes";
-    refreshProfileIfOpen(c);
-  } else if(type === 'insurance'){
-    const c = talents.find(x=>x.id===ref);
-    c.insuranceNoticeSent = true;
-    refreshProfileIfOpen(c);
-  } else if(type === 'sow'){
-    ref.noticeSent = true;
-  } else if(type === 'po'){
-    ref.noticeSent = true;
+  try{
+    let updated;
+    if(type === 'contract'){
+      updated = await api.talents.sendContractNotice(ref);
+    } else if(type === 'workpass'){
+      updated = await api.talents.sendWorkPassNotice(ref);
+    } else if(type === 'insurance'){
+      updated = await api.talents.sendInsuranceNotice(ref);
+    } else if(type === 'sow'){
+      // SOW/PO Tracking is not yet wired to the live database (planned for a later phase).
+      ref.noticeSent = true;
+    } else if(type === 'po'){
+      ref.noticeSent = true;
+    }
+    if(updated){
+      const c = talents.find(x=>x.id===ref);
+      if(c){ Object.assign(c, updated); computeDerived(c); refreshProfileIfOpen(c); }
+    }
+    closeRenewalNoticeModalFn();
+    renderRenewalCentre();
+    showToast(`Notice recorded for ${toLine} (no real email sent yet \u2014 email delivery isn't configured)`, checkIcon);
+  }catch(err){
+    showToast(`Failed to record notice: ${err.message}`, null);
   }
-
-  closeRenewalNoticeModalFn();
-  renderRenewalCentre();
-  showToast(`Renewal notice sent to ${toLine}`, checkIcon);
 });
 
 /* ---------- Client Modal (view / edit / add) ---------- */

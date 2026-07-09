@@ -5,6 +5,7 @@ import { requireAuth } from "../../middleware/requireAuth";
 import { serializeTalent, talentInclude } from "./serialize";
 import { toJson } from "../../lib/json";
 import { upsertClientByName, upsertProjectTypeByName, upsertLegalEntityByName, upsertRecruiterByName } from "../../lib/lookups";
+import { nextRenewalSeq, isExpiryWithinRenewalWindow } from "../../lib/renewalRules";
 
 export const talentsRouter = Router();
 talentsRouter.use(requireAuth);
@@ -157,11 +158,25 @@ talentsRouter.patch(
   })
 );
 
+async function writeRenewalEvent(
+  entityType: string,
+  entityId: string,
+  userId: string | undefined,
+  events: { eventType: string; fromValue?: string | null; toValue?: string | null }[]
+) {
+  if (events.length === 0) return;
+  await prisma.renewalEvent.createMany({
+    data: events.map((e) => ({ entityType, entityId, userId, eventType: e.eventType, fromValue: e.fromValue ?? null, toValue: e.toValue ?? null })),
+  });
+}
+
 talentsRouter.patch(
   "/:id/contract",
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id);
     const b = req.body as Record<string, unknown>;
+    const current = await prisma.contract.findUniqueOrThrow({ where: { talentId: id } });
+
     const data: Record<string, unknown> = {};
     for (const key of ["contractStatus", "noticePeriod", "contractUpload", "signedContractUpload", "contractRenewalStatus", "contractLifecycleStatus", "remarks", "renewalRemarks", "sowStatus", "poStatus"]) {
       if (key in b) data[key] = b[key];
@@ -174,7 +189,42 @@ talentsRouter.patch(
     if ("poRequired" in b) data.poRequired = b.poRequired === "Yes" || b.poRequired === true;
     if ("contractNoticeSent" in b) data.contractNoticeSent = Boolean(b.contractNoticeSent);
 
+    const events: { eventType: string; fromValue?: string; toValue?: string }[] = [];
+
+    const newEnd = (data.contractEnd as Date | undefined) ?? current.contractEnd;
+    const newStart = (data.contractStart as Date | undefined) ?? current.contractStart;
+    const datesChanged = newEnd.getTime() !== current.contractEnd.getTime() || newStart.getTime() !== current.contractStart.getTime();
+    const newRenewalStatus = (data.contractRenewalStatus as string | undefined) ?? current.contractRenewalStatus;
+    const completingNow = newRenewalStatus === "Completed" && current.contractRenewalStatus !== "Completed";
+
+    if ("contractRenewalStatus" in data && data.contractRenewalStatus !== current.contractRenewalStatus) {
+      events.push({ eventType: "STATUS_CHANGED", fromValue: current.contractRenewalStatus, toValue: newRenewalStatus });
+      if (completingNow) events.push({ eventType: "STATUS_MARKED_COMPLETED", toValue: newRenewalStatus });
+    }
+    const currentSeq = { completedSeq: current.renewalCompletedSeq, datesUpdatedSeq: current.datesUpdatedSeq };
+    if (datesChanged) {
+      events.push({ eventType: "DATES_UPDATED", fromValue: current.contractEnd.toISOString(), toValue: newEnd.toISOString() });
+      const seq = nextRenewalSeq(currentSeq, { completingNow, datesChanged });
+      data.renewalCompletedSeq = seq.completedSeq;
+      data.datesUpdatedSeq = seq.datesUpdatedSeq;
+    } else if (completingNow) {
+      const seq = nextRenewalSeq(currentSeq, { completingNow, datesChanged: false });
+      data.renewalCompletedSeq = seq.completedSeq;
+    }
+
+    // Status auto-recovery: an Expired/Terminated contract whose end date moves to the future
+    // is presumed renewed.
+    const effectiveStatus = (data.contractStatus as string | undefined) ?? current.contractStatus;
+    if ((effectiveStatus === "Expired" || effectiveStatus === "Terminated") && newEnd.getTime() > Date.now()) {
+      data.contractStatus = "Signed";
+    }
+    // Auto-recompute "renewal required" from the new end date, unless the caller explicitly set it.
+    if ("contractEnd" in data && !("contractRenewalRequired" in data)) {
+      data.contractRenewalRequired = isExpiryWithinRenewalWindow(newEnd);
+    }
+
     await prisma.contract.update({ where: { talentId: id }, data });
+    await writeRenewalEvent("contract", String(id), req.session.userId, events);
     res.json(await reserialize(id));
   })
 );
@@ -184,6 +234,8 @@ talentsRouter.patch(
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id);
     const b = req.body as Record<string, unknown>;
+    const current = await prisma.workPass.findUniqueOrThrow({ where: { talentId: id } });
+
     const data: Record<string, unknown> = {};
     for (const key of ["workPassType", "passStatus", "medicalCheckupStatus", "medicalInsuranceStatus", "wicaCoverageStatus", "renewalStatus", "educationVerificationStatus", "passLifecycleStatus", "passRenewalRemarks"]) {
       if (key in b) data[key] = b[key];
@@ -194,7 +246,44 @@ talentsRouter.patch(
     if ("renewalRequired" in b) data.renewalRequired = b.renewalRequired === "Yes" || b.renewalRequired === true;
     if ("workPassNoticeSent" in b) data.workPassNoticeSent = Boolean(b.workPassNoticeSent);
 
+    const events: { eventType: string; fromValue?: string; toValue?: string }[] = [];
+
+    const newExpiry = ("passExpiry" in data ? (data.passExpiry as Date | null) : current.passExpiry) ?? current.passExpiry;
+    const currentExpiry = current.passExpiry;
+    const datesChanged = !!newExpiry && (!currentExpiry || newExpiry.getTime() !== currentExpiry.getTime());
+    const newRenewalStatus = (data.renewalStatus as string | undefined) ?? current.renewalStatus;
+    const completingNow = newRenewalStatus === "Completed" && current.renewalStatus !== "Completed";
+
+    if ("renewalStatus" in data && data.renewalStatus !== current.renewalStatus) {
+      events.push({ eventType: "STATUS_CHANGED", fromValue: current.renewalStatus, toValue: newRenewalStatus });
+      if (completingNow) events.push({ eventType: "STATUS_MARKED_COMPLETED", toValue: newRenewalStatus });
+    }
+    if (datesChanged) {
+      events.push({ eventType: "DATES_UPDATED", fromValue: currentExpiry?.toISOString(), toValue: newExpiry?.toISOString() });
+      const seq = nextRenewalSeq(
+        { completedSeq: current.passRenewalCompletedSeq, datesUpdatedSeq: current.passDatesUpdatedSeq },
+        { completingNow, datesChanged }
+      );
+      data.passRenewalCompletedSeq = seq.completedSeq;
+      data.passDatesUpdatedSeq = seq.datesUpdatedSeq;
+    } else if (completingNow) {
+      const seq = nextRenewalSeq(
+        { completedSeq: current.passRenewalCompletedSeq, datesUpdatedSeq: current.passDatesUpdatedSeq },
+        { completingNow, datesChanged: false }
+      );
+      data.passRenewalCompletedSeq = seq.completedSeq;
+    }
+
+    const effectivePassStatus = (data.passStatus as string | undefined) ?? current.passStatus;
+    if (effectivePassStatus === "Expired" && newExpiry && newExpiry.getTime() > Date.now()) {
+      data.passStatus = "Issued";
+    }
+    if ("passExpiry" in data && newExpiry && !("renewalRequired" in data)) {
+      data.renewalRequired = isExpiryWithinRenewalWindow(newExpiry);
+    }
+
     await prisma.workPass.update({ where: { talentId: id }, data });
+    await writeRenewalEvent("workpass", String(id), req.session.userId, events);
     res.json(await reserialize(id));
   })
 );
@@ -204,6 +293,8 @@ talentsRouter.patch(
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id);
     const b = req.body as Record<string, unknown>;
+    const current = await prisma.insurancePolicy.findUniqueOrThrow({ where: { talentId: id } });
+
     const data: Record<string, unknown> = {};
     for (const key of ["policyType", "policyRenewalStatus", "policyRemarks"]) {
       if (key in b) data[key] = b[key];
@@ -214,7 +305,76 @@ talentsRouter.patch(
     if ("policyRenewalRequired" in b) data.policyRenewalRequired = b.policyRenewalRequired === "Yes" || b.policyRenewalRequired === true;
     if ("insuranceNoticeSent" in b) data.insuranceNoticeSent = Boolean(b.insuranceNoticeSent);
 
+    const events: { eventType: string; fromValue?: string; toValue?: string }[] = [];
+
+    const newExpiry = ("policyExpiry" in data ? (data.policyExpiry as Date | null) : current.policyExpiry) ?? current.policyExpiry;
+    const currentExpiry = current.policyExpiry;
+    const datesChanged = !!newExpiry && (!currentExpiry || newExpiry.getTime() !== currentExpiry.getTime());
+    const newRenewalStatus = (data.policyRenewalStatus as string | undefined) ?? current.policyRenewalStatus;
+    const completingNow = newRenewalStatus === "Completed" && current.policyRenewalStatus !== "Completed";
+
+    if ("policyRenewalStatus" in data && data.policyRenewalStatus !== current.policyRenewalStatus) {
+      events.push({ eventType: "STATUS_CHANGED", fromValue: current.policyRenewalStatus, toValue: newRenewalStatus });
+      if (completingNow) events.push({ eventType: "STATUS_MARKED_COMPLETED", toValue: newRenewalStatus });
+    }
+    if (datesChanged) {
+      events.push({ eventType: "DATES_UPDATED", fromValue: currentExpiry?.toISOString(), toValue: newExpiry?.toISOString() });
+      const seq = nextRenewalSeq(
+        { completedSeq: current.policyRenewalCompletedSeq, datesUpdatedSeq: current.policyDatesUpdatedSeq },
+        { completingNow, datesChanged }
+      );
+      data.policyRenewalCompletedSeq = seq.completedSeq;
+      data.policyDatesUpdatedSeq = seq.datesUpdatedSeq;
+    } else if (completingNow) {
+      const seq = nextRenewalSeq(
+        { completedSeq: current.policyRenewalCompletedSeq, datesUpdatedSeq: current.policyDatesUpdatedSeq },
+        { completingNow, datesChanged: false }
+      );
+      data.policyRenewalCompletedSeq = seq.completedSeq;
+    }
+
+    if ("policyExpiry" in data && newExpiry && !("policyRenewalRequired" in data)) {
+      data.policyRenewalRequired = isExpiryWithinRenewalWindow(newExpiry);
+    }
+
     await prisma.insurancePolicy.update({ where: { talentId: id }, data });
+    await writeRenewalEvent("insurance", String(id), req.session.userId, events);
+    res.json(await reserialize(id));
+  })
+);
+
+talentsRouter.post(
+  "/:id/contract/notice",
+  asyncHandler(async (req, res) => {
+    const id = Number(req.params.id);
+    const current = await prisma.contract.findUniqueOrThrow({ where: { talentId: id } });
+    const data: Record<string, unknown> = { contractNoticeSent: true, contractRenewalRequired: true };
+    if (current.contractRenewalStatus === "Not Started") data.contractRenewalStatus = "In Progress";
+    await prisma.contract.update({ where: { talentId: id }, data });
+    await writeRenewalEvent("contract", String(id), req.session.userId, [{ eventType: "NOTICE_SENT" }]);
+    res.json(await reserialize(id));
+  })
+);
+
+talentsRouter.post(
+  "/:id/workpass/notice",
+  asyncHandler(async (req, res) => {
+    const id = Number(req.params.id);
+    const current = await prisma.workPass.findUniqueOrThrow({ where: { talentId: id } });
+    const data: Record<string, unknown> = { workPassNoticeSent: true, renewalRequired: true };
+    if (current.renewalStatus === "Not Started") data.renewalStatus = "In Progress";
+    await prisma.workPass.update({ where: { talentId: id }, data });
+    await writeRenewalEvent("workpass", String(id), req.session.userId, [{ eventType: "NOTICE_SENT" }]);
+    res.json(await reserialize(id));
+  })
+);
+
+talentsRouter.post(
+  "/:id/insurance/notice",
+  asyncHandler(async (req, res) => {
+    const id = Number(req.params.id);
+    await prisma.insurancePolicy.update({ where: { talentId: id }, data: { insuranceNoticeSent: true } });
+    await writeRenewalEvent("insurance", String(id), req.session.userId, [{ eventType: "NOTICE_SENT" }]);
     res.json(await reserialize(id));
   })
 );

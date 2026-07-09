@@ -69,6 +69,9 @@ const api = {
     updateLeaveTimesheet: async (id, payload) => normalizeTalentDates(await request(`/talents/${id}/leave-timesheet`, { method: "PATCH", body: JSON.stringify(payload) })),
     updateOffboarding: async (id, payload) => normalizeTalentDates(await request(`/talents/${id}/offboarding`, { method: "PATCH", body: JSON.stringify(payload) })),
     moveToOffboarding: async (id) => normalizeTalentDates(await request(`/talents/${id}/move-to-offboarding`, { method: "POST" })),
+    sendContractNotice: async (id) => normalizeTalentDates(await request(`/talents/${id}/contract/notice`, { method: "POST" })),
+    sendWorkPassNotice: async (id) => normalizeTalentDates(await request(`/talents/${id}/workpass/notice`, { method: "POST" })),
+    sendInsuranceNotice: async (id) => normalizeTalentDates(await request(`/talents/${id}/insurance/notice`, { method: "POST" })),
     remove: (id) => request(`/talents/${id}`, { method: "DELETE" }),
   },
   dashboard: {
