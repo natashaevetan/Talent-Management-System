@@ -19,6 +19,27 @@ function normalizeTalentDates(raw) {
   return out;
 }
 
+const SOW_PO_DATE_FIELDS = ["dateOfCommencement", "dateOfCompletion", "validTo", "poReceivedDate", "month"];
+function normalizeRecordDates(raw) {
+  const out = { ...raw };
+  for (const key of SOW_PO_DATE_FIELDS) {
+    if (out[key]) out[key] = new Date(out[key]);
+  }
+  return out;
+}
+
+const CLIENT_BILLING_DATE_FIELDS = ["billableStart", "billableEnd", "invoiceDate", "clientPaymentDueDate", "clientPaymentReceivedDate"];
+function normalizeClientDates(raw) {
+  const out = { ...raw };
+  if (out.billing) {
+    out.billing = { ...out.billing };
+    for (const key of CLIENT_BILLING_DATE_FIELDS) {
+      if (out.billing[key]) out.billing[key] = new Date(out.billing[key]);
+    }
+  }
+  return out;
+}
+
 class ApiError extends Error {
   constructor(message, status) {
     super(message);
@@ -86,5 +107,23 @@ const api = {
     addEntity: (name) => request("/lookups/entities", { method: "POST", body: JSON.stringify({ name }) }),
     recruiters: () => request("/lookups/recruiters"),
     addRecruiter: (name) => request("/lookups/recruiters", { method: "POST", body: JSON.stringify({ name }) }),
+  },
+  clients: {
+    list: async () => (await request("/clients")).map(normalizeClientDates),
+    create: async (payload) => normalizeClientDates(await request("/clients", { method: "POST", body: JSON.stringify(payload) })),
+    update: async (name, payload) => normalizeClientDates(await request(`/clients/${encodeURIComponent(name)}`, { method: "PATCH", body: JSON.stringify(payload) })),
+    updateBilling: async (name, payload) => normalizeClientDates(await request(`/clients/${encodeURIComponent(name)}/billing`, { method: "PATCH", body: JSON.stringify(payload) })),
+  },
+  sow: {
+    list: async () => (await request("/sow")).map(normalizeRecordDates),
+    update: async (id, payload) => normalizeRecordDates(await request(`/sow/${id}`, { method: "PATCH", body: JSON.stringify(payload) })),
+    sendNotice: async (id) => normalizeRecordDates(await request(`/sow/${id}/notice`, { method: "POST" })),
+    setTalents: async (id, talentIds) => normalizeRecordDates(await request(`/sow/${id}/talents`, { method: "PUT", body: JSON.stringify({ talentIds }) })),
+  },
+  po: {
+    list: async () => (await request("/po")).map(normalizeRecordDates),
+    update: async (id, payload) => normalizeRecordDates(await request(`/po/${id}`, { method: "PATCH", body: JSON.stringify(payload) })),
+    sendNotice: async (id) => normalizeRecordDates(await request(`/po/${id}/notice`, { method: "POST" })),
+    setTalents: async (id, talentIds) => normalizeRecordDates(await request(`/po/${id}/talents`, { method: "PUT", body: JSON.stringify({ talentIds }) })),
   },
 };

@@ -4765,32 +4765,23 @@ document.getElementById('renewalUpdateForm').addEventListener('submit', async e=
   const newStatus = document.getElementById('ru_renewalStatus').value;
 
   if(isSow || isPo){
-    // SOW/PO Tracking is not yet wired to the live database (planned for a later phase) —
-    // this still only updates the in-memory mock arrays.
-    const newStart = new Date(newStartVal);
-    const newEnd = new Date(newEndVal);
     const r = isSow ? sowRecords[editingRenewalUpdateId] : poRecords[editingRenewalUpdateId];
     if(!r) return;
-    const statusKey = isSow ? 'sowStatus' : 'poStatus';
-    const completedSeqKey = isSow ? 'sowRenewalCompletedSeq' : 'poRenewalCompletedSeq';
-    const datesSeqKey = isSow ? 'sowDatesUpdatedSeq' : 'poDatesUpdatedSeq';
-    const oldStatus = r[statusKey];
-    const datesChanged = (r.dateOfCommencement ? r.dateOfCommencement.getTime() : NaN) !== newStart.getTime() || (r.dateOfCompletion ? r.dateOfCompletion.getTime() : NaN) !== newEnd.getTime();
-    r.dateOfCommencement = newStart;
-    r.dateOfCompletion = newEnd;
-    r.validTo = newEnd; // keep SOW/PO Tracking page's legacy field in sync
-    r.poReceivedDate = newEnd;
-    if(newStatus === "Completed" && oldStatus !== "Completed"){
-      r[completedSeqKey] = ++renewalActionSeq;
+    const remarks = document.getElementById('ru_remarks').value.trim();
+    try{
+      const api_ = isSow ? api.sow : api.po;
+      const updated = await api_.update(r.id, {
+        dateOfCommencement: newStartVal, dateOfCompletion: newEndVal,
+        [isSow ? "sowStatus" : "poStatus"]: newStatus,
+        remarks,
+      });
+      Object.assign(r, updated);
+      closeRenewalUpdateModalFn();
+      if(isSow){ renderRenewalSow(); renderSowTable(); } else { renderRenewalPo(); renderPoTable(); }
+      showToast(`${r.client}${isSow ? ' – ' + r.project : ''}'s status updated`, checkIcon);
+    }catch(err){
+      showToast(`Failed to update status: ${err.message}`, null);
     }
-    r[statusKey] = newStatus;
-    if(datesChanged){
-      r[datesSeqKey] = ++renewalActionSeq;
-    }
-    r.remarks = document.getElementById('ru_remarks').value.trim();
-    closeRenewalUpdateModalFn();
-    if(isSow){ renderRenewalSow(); renderSowTable(); } else { renderRenewalPo(); renderPoTable(); }
-    showToast(`${r.client}${isSow ? " " + String.fromCharCode(8211) + " " + r.project : ""}'s status updated`, checkIcon);
     return;
   }
 
@@ -4929,19 +4920,29 @@ document.getElementById('manageTalentsPickerCancelBtn').addEventListener('click'
   managingTalentsPickerMode = null;
   renderManageTalentsModalContent();
 });
-document.getElementById('manageTalentsPickerConfirmBtn').addEventListener('click', ()=>{
+document.getElementById('manageTalentsPickerConfirmBtn').addEventListener('click', async ()=>{
   const r = getManageTalentsRecord();
   if(!r) return;
   const id = Number(document.getElementById('manageTalentsPickerSelect').value);
   if(!id) return;
+  let newTalentIds;
   if(managingTalentsPickerMode === 'add'){
-    r.talentIds = [...(r.talentIds||[]), id];
+    newTalentIds = [...(r.talentIds||[]), id];
   } else if(managingTalentsPickerMode === 'remove'){
-    r.talentIds = (r.talentIds||[]).filter(tid=>tid!==id);
+    newTalentIds = (r.talentIds||[]).filter(tid=>tid!==id);
+  } else {
+    return;
   }
-  managingTalentsPickerMode = null;
-  renderManageTalentsModalContent();
-  if(managingTalentsType==='sow') renderRenewalSow(); else renderRenewalPo();
+  try{
+    const api_ = managingTalentsType === 'sow' ? api.sow : api.po;
+    const updated = await api_.setTalents(r.id, newTalentIds);
+    Object.assign(r, updated);
+    managingTalentsPickerMode = null;
+    renderManageTalentsModalContent();
+    if(managingTalentsType==='sow') renderRenewalSow(); else renderRenewalPo();
+  }catch(err){
+    showToast(`Failed to update assigned talents: ${err.message}`, null);
+  }
 });
 
 function renderRenewalWorkpass(){
@@ -5178,12 +5179,13 @@ document.getElementById('renewalNoticeForm').addEventListener('submit', async e=
     } else if(type === 'insurance'){
       updated = await api.talents.sendInsuranceNotice(ref);
     } else if(type === 'sow'){
-      // SOW/PO Tracking is not yet wired to the live database (planned for a later phase).
-      ref.noticeSent = true;
+      updated = await api.sow.sendNotice(ref.id);
+      Object.assign(ref, updated);
     } else if(type === 'po'){
-      ref.noticeSent = true;
+      updated = await api.po.sendNotice(ref.id);
+      Object.assign(ref, updated);
     }
-    if(updated){
+    if(updated && (type === 'contract' || type === 'workpass' || type === 'insurance')){
       const c = talents.find(x=>x.id===ref);
       if(c){ Object.assign(c, updated); computeDerived(c); refreshProfileIfOpen(c); }
     }
@@ -5260,19 +5262,11 @@ document.getElementById('clientEditBtn').addEventListener('click', ()=>{
   clientEditForm.classList.remove('hidden');
 });
 
-clientEditForm.addEventListener('submit', e=>{
+clientEditForm.addEventListener('submit', async e=>{
   e.preventDefault();
   const isNew = editingClientName === null;
   const name = document.getElementById('cl_name').value.trim();
-  if(isNew){
-    if(clients.includes(name)){
-      showToast(`A client named "${name}" already exists.`);
-      return;
-    }
-    clients.push(name);
-  }
-  const key = isNew ? name : editingClientName;
-  clientProfiles[key] = {
+  const payload = {
     industry: document.getElementById('cl_industry').value,
     status: document.getElementById('cl_status').value,
     contactPerson: document.getElementById('cl_contactPerson').value.trim(),
@@ -5280,17 +5274,31 @@ clientEditForm.addEventListener('submit', e=>{
     contactEmail: document.getElementById('cl_contactEmail').value.trim(),
     contactNumber: document.getElementById('cl_contactNumber').value.trim(),
   };
-  closeClientModalFn();
-  msClientFilter.setOptions([...new Set(clients)].sort());
-  if(msFinanceClient) msFinanceClient.setOptions([...new Set(clients)].sort());
-  if(msBillingClient) msBillingClient.setOptions([...new Set(clients)].sort());
-  if(msOperationsClient) msOperationsClient.setOptions([...new Set(clients)].sort());
-  if(msOffboardingClient) msOffboardingClient.setOptions([...new Set(clients)].sort());
-  if(msAnalyticsClient) msAnalyticsClient.setOptions([...new Set(clients)].sort());
-  fillOptions(document.getElementById('f_client'), [...new Set(clients)].sort(), null);
-  addAddNewOption(document.getElementById('f_client'), "+ Add New Client…");
-  renderClients();
-  showToast(isNew ? `${name} added as a new client` : `${key}'s details updated`, checkIcon);
+  try{
+    let saved;
+    if(isNew){
+      saved = await api.clients.create({ name, ...payload });
+      clients.push(saved.name);
+    } else {
+      saved = await api.clients.update(editingClientName, payload);
+    }
+    const key = isNew ? saved.name : editingClientName;
+    clientProfiles[key] = { industry: saved.industry, status: saved.status, contactPerson: saved.contactPerson, accountManager: saved.accountManager, contactEmail: saved.contactEmail, contactNumber: saved.contactNumber };
+    if(saved.billing) clientBilling[key] = saved.billing;
+    closeClientModalFn();
+    msClientFilter.setOptions([...new Set(clients)].sort());
+    if(msFinanceClient) msFinanceClient.setOptions([...new Set(clients)].sort());
+    if(msBillingClient) msBillingClient.setOptions([...new Set(clients)].sort());
+    if(msOperationsClient) msOperationsClient.setOptions([...new Set(clients)].sort());
+    if(msOffboardingClient) msOffboardingClient.setOptions([...new Set(clients)].sort());
+    if(msAnalyticsClient) msAnalyticsClient.setOptions([...new Set(clients)].sort());
+    fillOptions(document.getElementById('f_client'), [...new Set(clients)].sort(), null);
+    addAddNewOption(document.getElementById("f_client"), "+ Add New Client…");
+    renderClients();
+    showToast(isNew ? `${name} added as a new client` : `${key}'s details updated`, checkIcon);
+  }catch(err){
+    showToast(`Failed to save client: ${err.message}`, null);
+  }
 });
 
 let analyticsSortTerm = "gp-desc";
@@ -5788,25 +5796,33 @@ function showBillingEdit(client, safeId){
   if(!el) return;
   el.innerHTML = billingEditHtml(safeId, b);
   el.querySelector('.billing-cancel-btn').addEventListener('click', ()=> showBillingView(client, safeId));
-  el.querySelector('.billing-save-btn').addEventListener('click', ()=>{
-    b.billingType = document.getElementById(`bill_billingType_${safeId}`).value;
-    b.chargeRate = Number(document.getElementById(`bill_chargeRate_${safeId}`).value);
-    b.currency = document.getElementById(`bill_currency_${safeId}`).value;
-    b.billableStart = new Date(document.getElementById(`bill_billableStart_${safeId}`).value);
-    b.billableEnd = new Date(document.getElementById(`bill_billableEnd_${safeId}`).value);
-    b.sowRequired = document.getElementById(`bill_sowRequired_${safeId}`).value;
-    b.sowStatus = document.getElementById(`bill_sowStatus_${safeId}`).value;
-    b.poRequired = document.getElementById(`bill_poRequired_${safeId}`).value;
-    b.poStatus = document.getElementById(`bill_poStatus_${safeId}`).value;
-    b.invoiceNumber = document.getElementById(`bill_invoiceNumber_${safeId}`).value;
-    b.invoiceDate = new Date(document.getElementById(`bill_invoiceDate_${safeId}`).value);
-    b.invoiceAmount = Number(document.getElementById(`bill_invoiceAmount_${safeId}`).value);
-    b.invoiceStatus = document.getElementById(`bill_invoiceStatus_${safeId}`).value;
-    b.clientPaymentDueDate = new Date(document.getElementById(`bill_dueDate_${safeId}`).value);
+  el.querySelector('.billing-save-btn').addEventListener('click', async ()=>{
     const receivedVal = document.getElementById(`bill_receivedDate_${safeId}`).value;
-    b.clientPaymentReceivedDate = receivedVal ? new Date(receivedVal) : null;
-    showBillingView(client, safeId);
-    showToast(`${client}'s billing details updated`, checkIcon);
+    const payload = {
+      billingType: document.getElementById(`bill_billingType_${safeId}`).value,
+      chargeRate: Number(document.getElementById(`bill_chargeRate_${safeId}`).value),
+      currency: document.getElementById(`bill_currency_${safeId}`).value,
+      billableStart: document.getElementById(`bill_billableStart_${safeId}`).value,
+      billableEnd: document.getElementById(`bill_billableEnd_${safeId}`).value,
+      sowRequired: document.getElementById(`bill_sowRequired_${safeId}`).value,
+      sowStatus: document.getElementById(`bill_sowStatus_${safeId}`).value,
+      poRequired: document.getElementById(`bill_poRequired_${safeId}`).value,
+      poStatus: document.getElementById(`bill_poStatus_${safeId}`).value,
+      invoiceNumber: document.getElementById(`bill_invoiceNumber_${safeId}`).value,
+      invoiceDate: document.getElementById(`bill_invoiceDate_${safeId}`).value,
+      invoiceAmount: Number(document.getElementById(`bill_invoiceAmount_${safeId}`).value),
+      invoiceStatus: document.getElementById(`bill_invoiceStatus_${safeId}`).value,
+      clientPaymentDueDate: document.getElementById(`bill_dueDate_${safeId}`).value,
+      clientPaymentReceivedDate: receivedVal || null,
+    };
+    try{
+      const updated = await api.clients.updateBilling(client, payload);
+      clientBilling[client] = updated.billing;
+      showBillingView(client, safeId);
+      showToast(`${client}'s billing details updated`, checkIcon);
+    }catch(err){
+      showToast(`Failed to update billing: ${err.message}`, null);
+    }
   });
 }
 document.getElementById('exportExcelBtn').addEventListener('click', ()=> showToast("This mockup does not export real files yet."));
@@ -6106,17 +6122,31 @@ async function bootstrap(){
     const initial = (me.name || me.email || '?')[0].toUpperCase();
     document.getElementById('profileBtn').textContent = initial;
 
-    const [talentsData, clientNames, dashboardData] = await Promise.all([
+    const [talentsData, clientsData, dashboardData, sowData, poData] = await Promise.all([
       api.talents.list(),
-      api.lookups.clientNames(),
+      api.clients.list(),
       api.dashboard.home(),
+      api.sow.list(),
+      api.po.list(),
     ]);
 
     talents = talentsData;
     talents.forEach(computeDerived);
-    clients.length = 0;
-    clients.push(...clientNames);
     homeDashboardData = dashboardData;
+
+    clients.length = 0;
+    clients.push(...clientsData.map(c=>c.name));
+    Object.keys(clientProfiles).forEach(k=>delete clientProfiles[k]);
+    Object.keys(clientBilling).forEach(k=>delete clientBilling[k]);
+    clientsData.forEach(c=>{
+      clientProfiles[c.name] = { industry: c.industry, contactPerson: c.contactPerson, contactEmail: c.contactEmail, contactNumber: c.contactNumber, accountManager: c.accountManager, status: c.status };
+      if(c.billing) clientBilling[c.name] = c.billing;
+    });
+
+    sowRecords.length = 0;
+    sowRecords.push(...sowData);
+    poRecords.length = 0;
+    poRecords.push(...poData);
   }catch(err){
     if(err && err.status === 401) return; // api.js already redirected to /login.html
     document.body.innerHTML = `<div class="p-8 text-sm" style="color:var(--red-text)">Failed to load the application: ${err.message}. Check that the server is running and try refreshing.</div>`;

@@ -10,6 +10,9 @@ import { authRouter } from "./modules/auth/router";
 import { talentsRouter } from "./modules/talents/router";
 import { lookupsRouter } from "./modules/lookups/router";
 import { dashboardRouter } from "./modules/dashboard/router";
+import { clientsRouter } from "./modules/clients/router";
+import { sowRouter } from "./modules/sow/router";
+import { poRouter } from "./modules/po/router";
 
 export function createApp() {
   const app = express();
@@ -61,6 +64,9 @@ export function createApp() {
   app.use("/api/talents", talentsRouter);
   app.use("/api/lookups", lookupsRouter);
   app.use("/api/dashboard", dashboardRouter);
+  app.use("/api/clients", clientsRouter);
+  app.use("/api/sow", sowRouter);
+  app.use("/api/po", poRouter);
 
   app.use(express.static(path.join(__dirname, "..", "public")));
 
