@@ -2266,6 +2266,9 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
       </div>
+      <div id="cp_currentStatus" class="hidden text-xs font-medium flex items-center gap-1.5">
+        <span id="cp_currentIcon"></span><span id="cp_currentText"></span>
+      </div>
       <div class="pw-field-wrap">
         <input required id="cp_new" type="password" autocomplete="new-password" class="filter-input" placeholder="New password" />
         <button type="button" class="pw-toggle" data-target="cp_new" aria-label="Show password">
@@ -2274,6 +2277,9 @@
       </div>
       <div id="cp_reqStatus" class="hidden text-xs font-medium flex items-center gap-1.5">
         <span id="cp_reqIcon"></span><span id="cp_reqText"></span>
+      </div>
+      <div id="cp_sameStatus" class="hidden text-xs font-medium flex items-center gap-1.5">
+        <span id="cp_sameIcon"></span><span id="cp_sameText"></span>
       </div>
       <div>
         <div class="h-1.5 rounded-full bg-[#EEF0F2] overflow-hidden">

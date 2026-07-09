@@ -16,6 +16,16 @@ const loginLimiter = rateLimit({
   message: { error: "Too many login attempts. Try again in a few minutes." },
 });
 
+// More lenient than loginLimiter since this only fires while already authenticated
+// (used for the live "is this really my current password" indicator while typing).
+const verifyPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many attempts. Try again in a few minutes." },
+});
+
 authRouter.post(
   "/login",
   loginLimiter,
@@ -68,6 +78,22 @@ authRouter.get(
 );
 
 authRouter.post(
+  "/verify-password",
+  requireAuth,
+  verifyPasswordLimiter,
+  asyncHandler(async (req, res) => {
+    const { password } = req.body as { password?: string };
+    if (!password) {
+      res.status(400).json({ error: "password is required" });
+      return;
+    }
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: req.session.userId! } });
+    const valid = await bcrypt.compare(password, user.passwordHash);
+    res.json({ valid });
+  })
+);
+
+authRouter.post(
   "/change-password",
   requireAuth,
   asyncHandler(async (req, res) => {
@@ -86,6 +112,11 @@ authRouter.post(
     const valid = await bcrypt.compare(currentPassword, user.passwordHash);
     if (!valid) {
       res.status(401).json({ error: "Current password is incorrect" });
+      return;
+    }
+    const sameAsCurrent = await bcrypt.compare(newPassword, user.passwordHash);
+    if (sameAsCurrent) {
+      res.status(400).json({ error: "New password must be different from current password" });
       return;
     }
 

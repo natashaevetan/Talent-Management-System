@@ -1950,6 +1950,34 @@ document.querySelectorAll('.pw-toggle').forEach(btn=>{
   });
 });
 
+let cpCurrentPasswordVerified = null; // null = not checked yet, true/false = server-verified
+let cpVerifyDebounceTimer = null;
+
+function verifyCurrentPasswordLive(){
+  const pw = document.getElementById('cp_current').value;
+  if(cpVerifyDebounceTimer) clearTimeout(cpVerifyDebounceTimer);
+  if(pw.length === 0){
+    cpCurrentPasswordVerified = null;
+    setStatusRow('cp_current', null);
+    updatePasswordChecklist();
+    return;
+  }
+  setStatusRow('cp_current', 'amber', 'Checking…');
+  const checkingFor = pw;
+  cpVerifyDebounceTimer = setTimeout(async ()=>{
+    try{
+      const { valid } = await api.auth.verifyPassword(checkingFor);
+      if(document.getElementById('cp_current').value !== checkingFor) return; // stale response, field changed since
+      cpCurrentPasswordVerified = valid;
+      setStatusRow('cp_current', valid ? 'green' : 'red', valid ? 'Current password is correct' : 'Current password is incorrect');
+    }catch(err){
+      cpCurrentPasswordVerified = null;
+      setStatusRow('cp_current', null);
+    }
+    updatePasswordChecklist();
+  }, 450);
+}
+
 function setStatusRow(prefix, state, text){
   // state: 'red' | 'amber' | 'green' | null(hidden)
   const row = document.getElementById(prefix + 'Status');
@@ -1974,6 +2002,7 @@ function setStatusRow(prefix, state, text){
 function updatePasswordChecklist(){
   const pw = document.getElementById('cp_new').value;
   const confirmPw = document.getElementById('cp_confirm').value;
+  const current = document.getElementById('cp_current').value;
   const rules = evaluatePassword(pw);
   document.querySelectorAll('#cp_criteria li[data-rule]').forEach(li=>{
     const met = rules[li.dataset.rule];
@@ -1999,6 +2028,15 @@ function updatePasswordChecklist(){
     else setStatusRow('cp_req', 'red', 'Does not meet requirements');
   }
 
+  const sameAsCurrent = pw.length > 0 && current.length > 0 && pw === current;
+  if(pw.length === 0 || current.length === 0){
+    setStatusRow('cp_same', null);
+  } else if(sameAsCurrent){
+    setStatusRow('cp_same', 'red', 'New password must be different from current password');
+  } else {
+    setStatusRow('cp_same', null);
+  }
+
   if(confirmPw.length === 0){
     setStatusRow('cp_match', null);
   } else if(confirmPw === pw){
@@ -2007,13 +2045,13 @@ function updatePasswordChecklist(){
     setStatusRow('cp_match', 'red', 'Passwords do not match');
   }
 
-  const current = document.getElementById('cp_current').value;
   const passwordsMatch = confirmPw.length > 0 && confirmPw === pw;
-  document.getElementById('cp_submitBtn').disabled = !(allMet && current.length > 0 && passwordsMatch);
+  document.getElementById('cp_submitBtn').disabled = !(allMet && current.length > 0 && passwordsMatch && !sameAsCurrent && cpCurrentPasswordVerified === true);
 }
 document.getElementById('cp_new').addEventListener('input', updatePasswordChecklist);
-document.getElementById('cp_current').addEventListener('input', updatePasswordChecklist);
+document.getElementById('cp_current').addEventListener('input', verifyCurrentPasswordLive);
 document.getElementById('cp_confirm').addEventListener('input', updatePasswordChecklist);
+
 
 document.getElementById('viewProfileBtn').addEventListener('click', ()=>{
   closeAllDropdowns();
@@ -2032,7 +2070,11 @@ document.getElementById('viewProfileBtn').addEventListener('click', ()=>{
   });
   document.getElementById('cp_strengthBar').style.width = '0%';
   document.getElementById('cp_strengthLabel').textContent = ' ';
+  cpCurrentPasswordVerified = null;
+  if(cpVerifyDebounceTimer) clearTimeout(cpVerifyDebounceTimer);
+  setStatusRow('cp_current', null);
   setStatusRow('cp_req', null);
+  setStatusRow('cp_same', null);
   setStatusRow('cp_match', null);
   document.getElementById('cp_submitBtn').disabled = true;
   profileInfoModalOverlay.classList.add('open');
