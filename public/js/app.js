@@ -365,6 +365,26 @@ function makeTalent(){
 }
 let talents = []; // populated from the API at bootstrap (see bootstrap() at the end of this file)
 
+/* Generic Excel export: columns = [{label, value(row)}], rows = the current filtered/sorted
+   array a view is displaying. Exports exactly what's on screen, not the full unfiltered dataset. */
+function exportRowsToExcel(filename, columns, rows){
+  if(!rows || rows.length === 0){
+    showToast("No rows to export with the current filters.");
+    return;
+  }
+  const data = rows.map(row=>{
+    const obj = {};
+    columns.forEach(col=>{ obj[col.label] = col.value(row); });
+    return obj;
+  });
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+  XLSX.writeFile(wb, filename);
+  showToast(`Exported ${rows.length} row${rows.length===1?'':'s'} to ${filename}`, checkIcon);
+}
+function xlDate(d){ return d ? fmtDate(d) : ''; }
+
 function fmtDate(d){ return d.toLocaleDateString('en-SG', { day:'2-digit', month:'short', year:'numeric' }); }
 function fmtMoney(n){ return "S$ " + n.toLocaleString('en-SG'); }
 function fmtMoneyCompact(n){
@@ -2608,6 +2628,7 @@ function updateWorkpassSortArrows(){
   });
 }
 
+let lastWorkpassRows = [];
 function renderWorkpassTable(){
   let rows = getWorkpassFiltered();
   rows.sort((a,b)=>{
@@ -2618,6 +2639,7 @@ function renderWorkpassTable(){
     if(av > bv) return 1 * workpassSortDir;
     return 0;
   });
+  lastWorkpassRows = rows;
 
   document.getElementById('workpassResultCount').textContent = rows.length;
 
@@ -2709,7 +2731,24 @@ document.getElementById('workpassClearFilters').addEventListener('click', e=>{
   msWorkpassRenewalStatus.reset();
   renderWorkPass();
 });
-document.getElementById('workpassDownloadLink').addEventListener('click', e=>{ e.preventDefault(); showToast("This mockup does not export real data yet."); });
+document.getElementById('workpassDownloadLink').addEventListener('click', e=>{
+  e.preventDefault();
+  exportRowsToExcel('work-pass.xlsx', [
+    { label: 'ID', value: c=>`C${String(c.id).padStart(6,'0')}` },
+    { label: 'Name', value: c=>c.name },
+    { label: 'NRIC/FIN', value: c=>workpassFinNo(c) },
+    { label: 'Client', value: c=>c.client },
+    { label: 'Work Pass Type', value: c=>c.workPassType },
+    { label: 'Issue Date', value: c=>['Singapore Citizen','PR'].includes(c.workPassType) ? '' : xlDate(c.passIssueDate) },
+    { label: 'Expiry Date', value: c=>['Singapore Citizen','PR'].includes(c.workPassType) ? '' : xlDate(c.passExpiry) },
+    { label: 'Days Left', value: c=>['Singapore Citizen','PR'].includes(c.workPassType) ? '' : c.passDaysLeft },
+    { label: 'Status', value: c=>passStatusDisplay(c).label },
+    { label: 'Renewal Status', value: c=>renewalStatusDisplayLabel(c.renewalStatus) },
+    { label: 'Remarks', value: c=>c.passRenewalRemarks || '' },
+    { label: 'Case Owner', value: c=>c.caseOwner },
+    { label: 'Entity', value: c=>c.entity },
+  ], lastWorkpassRows);
+});
 
 /* ---------- CONTRACTS & SOW/PO ---------- */
 let contractsSearchTerm = "";
@@ -2755,7 +2794,22 @@ function initContractsFilters(){
     msContractsRenewalStatus.reset();
     renderContracts();
   });
-  document.getElementById('contractsDownloadLink').addEventListener('click', e=>{ e.preventDefault(); showToast("This mockup does not export real data yet."); });
+  document.getElementById('contractsDownloadLink').addEventListener('click', e=>{
+    e.preventDefault();
+    exportRowsToExcel('contracts.xlsx', [
+      { label: 'ID', value: c=>`C${String(c.id).padStart(6,'0')}` },
+      { label: 'Name', value: c=>c.name },
+      { label: 'Client', value: c=>c.client },
+      { label: 'Contract Start', value: c=>xlDate(c.contractStart) },
+      { label: 'Contract End', value: c=>xlDate(c.contractEnd) },
+      { label: 'Days Left', value: c=>c.contractDaysLeft },
+      { label: 'Status', value: c=>contractStatusDisplay(c).label },
+      { label: 'Renewal Status', value: c=>renewalStatusDisplayLabel(c.contractRenewalStatus) },
+      { label: 'Remarks', value: c=>c.renewalRemarks || '' },
+      { label: 'Case Owner', value: c=>c.caseOwner },
+      { label: 'Entity', value: c=>c.entity },
+    ], lastContractsRows);
+  });
 }
 
 function updateContractsSortArrows(){
@@ -2767,6 +2821,7 @@ function updateContractsSortArrows(){
   });
 }
 
+let lastContractsRows = [];
 function renderContracts(){
   initContractsFilters();
   initCosmeticMonthFilter('contractsStatsMonthFilter', ()=> renderContracts());
@@ -2816,6 +2871,7 @@ function renderContracts(){
     if(av > bv) return 1 * contractsSortDir;
     return 0;
   });
+  lastContractsRows = rows;
 
   document.getElementById('contractsResultCount').textContent = rows.length;
 
@@ -3088,7 +3144,23 @@ function initFinanceFilters(){
     msFinanceSalary.reset();
     renderFinance();
   });
-  document.getElementById('financeDownloadLink').addEventListener('click', e=>{ e.preventDefault(); showToast("This mockup does not export real data yet."); });
+  document.getElementById('financeDownloadLink').addEventListener('click', e=>{
+    e.preventDefault();
+    exportRowsToExcel('finance.xlsx', [
+      { label: 'ID', value: c=>`C${String(c.id).padStart(6,'0')}` },
+      { label: 'Name', value: c=>c.name },
+      { label: 'Total Cost', value: c=>Math.round(lastFinanceFigures.get(c.id).totalCost) },
+      { label: 'Gross Profit', value: c=>Math.round(lastFinanceFigures.get(c.id).revenue - lastFinanceFigures.get(c.id).totalCost) },
+      { label: 'Salary', value: c=>Math.round(lastFinanceFigures.get(c.id).salary) },
+      { label: 'CPF', value: c=>Math.round(lastFinanceFigures.get(c.id).cpf) },
+      { label: 'SDL', value: c=>Math.round(lastFinanceFigures.get(c.id).sdl) },
+      { label: 'WICA', value: c=>Math.round(lastFinanceFigures.get(c.id).wica) },
+      { label: 'Insurance', value: c=>Math.round(lastFinanceFigures.get(c.id).insurance) },
+      { label: 'Allowances', value: c=>Math.round(lastFinanceFigures.get(c.id).allowances) },
+      { label: 'Claims', value: c=>Math.round(lastFinanceFigures.get(c.id).claims) },
+      { label: 'Work Pass Admin Fee', value: c=>Math.round(lastFinanceFigures.get(c.id).adminFee) },
+    ], lastFinanceRows);
+  });
 }
 
 function updateFinanceSortArrows(){
@@ -3124,7 +3196,7 @@ function financeTalentFigures(c, monthOffset){
 function getTimesheetForMonth(c, monthOffset){
   if(monthOffset === 0){
     return {
-      monthLabel: c.timesheetMonth,
+      monthLabel: c.timesheetMonth instanceof Date ? monthLabelFull(c.timesheetMonth) : (c.timesheetMonth || 'N/A'),
       workingDays: c.workingDays,
       submitted: c.timesheetSubmitted,
       submissionDate: c.submissionDate,
@@ -3157,6 +3229,8 @@ function seededFraction(seed){
   return x - Math.floor(x);
 }
 
+let lastFinanceRows = [];
+let lastFinanceFigures = new Map();
 function renderFinance(){
   initFinanceFilters();
   initFinanceMonthFilter();
@@ -3221,6 +3295,8 @@ function renderFinance(){
     if(av > bv) return 1 * financeSortDir;
     return 0;
   });
+  lastFinanceRows = rows;
+  lastFinanceFigures = figuresByRow;
 
   document.getElementById('financeResultCount').textContent = rows.length;
 
@@ -3314,7 +3390,21 @@ function initBillingFilters(){
     msBillingStatusInstance.reset();
     renderBilling();
   });
-  document.getElementById('billingDownloadLink').addEventListener('click', e=>{ e.preventDefault(); showToast("This mockup does not export real data yet."); });
+  document.getElementById('billingDownloadLink').addEventListener('click', e=>{
+    e.preventDefault();
+    exportRowsToExcel('talent-billing.xlsx', [
+      { label: 'ID', value: c=>`C${String(c.id).padStart(6,'0')}` },
+      { label: 'Name', value: c=>c.name },
+      { label: 'Client / Project', value: c=>`${c.client} - ${c.projectType}` },
+      { label: 'Charge Rate', value: c=>c.chargeRate },
+      { label: 'Invoice Number', value: c=>c.talentInvoiceNumber },
+      { label: 'Invoice Date', value: c=>xlDate(c.talentInvoiceDate) },
+      { label: 'Invoice Amount', value: c=>c.talentInvoiceAmount },
+      { label: 'Status', value: c=>c.invoiceStatus },
+      { label: 'Due Date', value: c=>xlDate(c.talentInvoiceDueDate) },
+      { label: 'Paid Date', value: c=>xlDate(c.talentInvoicePaidDate) },
+    ], lastBillingRows);
+  });
 }
 
 function updateBillingSortArrows(){
@@ -3326,6 +3416,7 @@ function updateBillingSortArrows(){
   });
 }
 
+let lastBillingRows = [];
 function renderBilling(){
   initBillingFilters();
   initCosmeticMonthFilter('billingStatsMonthFilter', ()=> renderBilling());
@@ -3379,6 +3470,7 @@ function renderBilling(){
     if(av > bv) return 1 * billingSortDir;
     return 0;
   });
+  lastBillingRows = rows;
 
   document.getElementById('billingResultCount').textContent = rows.length;
 
@@ -3576,7 +3668,21 @@ function initOperationsFilters(){
     msOperationsApproval.reset();
     renderOperations();
   });
-  document.getElementById('operationsDownloadLink').addEventListener('click', e=>{ e.preventDefault(); showToast("This mockup does not export real data yet."); });
+  document.getElementById('operationsDownloadLink').addEventListener('click', e=>{
+    e.preventDefault();
+    exportRowsToExcel('leave-timesheet.xlsx', [
+      { label: 'ID', value: c=>`C${String(c.id).padStart(6,'0')}` },
+      { label: 'Name', value: c=>c.name },
+      { label: 'Client', value: c=>c.client },
+      { label: 'Annual Leave Balance', value: c=>c.annualLeaveBalance },
+      { label: 'Sick Leave Balance', value: c=>c.sickLeaveBalance },
+      { label: 'Leave Approval Status', value: c=>c.leaveApprovalStatus },
+      { label: 'Timesheet Submitted', value: c=>c.timesheetSubmitted },
+      { label: 'Client Approved', value: c=>c.clientApproved },
+      { label: 'Overtime Hours', value: c=>c.overtimeHours },
+      { label: 'Absence Days', value: c=>c.absenceDays },
+    ], lastOperationsRows);
+  });
 }
 function updateOperationsSortArrows(){
   document.querySelectorAll('.operations-sort-caret').forEach(el=>{
@@ -3587,6 +3693,7 @@ function updateOperationsSortArrows(){
   });
 }
 
+let lastOperationsRows = [];
 function renderOperations(){
   initOperationsFilters();
   initCosmeticMonthFilter('operationsStatsMonthFilter', ()=> renderOperations());
@@ -3648,6 +3755,7 @@ function renderOperations(){
     if(av > bv) return 1 * operationsSortDir;
     return 0;
   });
+  lastOperationsRows = rows;
 
   document.getElementById('operationsResultCount').textContent = rows.length;
   const tbody = document.getElementById('operationsTableBody');
@@ -3718,7 +3826,7 @@ function openLeaveViewModal(id){
   ].join('');
 
   document.getElementById('leaveViewFieldsTimesheet').innerHTML = [
-    dlRow("Month", c.timesheetMonth),
+    dlRow("Month", c.timesheetMonth instanceof Date ? monthLabelFull(c.timesheetMonth) : (c.timesheetMonth || 'N/A')),
     dlRow("Working Days", c.workingDays),
     dlRow("Timesheet Submitted", c.timesheetSubmitted),
     dlRow("Submission Date", c.submissionDate ? fmtDate(c.submissionDate) : "N/A"),
@@ -3755,7 +3863,7 @@ document.getElementById('leaveEditBtn').addEventListener('click', ()=>{
   document.getElementById('lv_unpaidTaken').value = c.unpaidLeaveTaken;
   document.getElementById('lv_mcUpload').value = c.mcUpload;
   document.getElementById('lv_approvalStatus').value = c.leaveApprovalStatus;
-  document.getElementById('lv_month').value = c.timesheetMonth;
+  document.getElementById('lv_month').value = c.timesheetMonth instanceof Date ? monthLabelFull(c.timesheetMonth) : (c.timesheetMonth || '');
   document.getElementById('lv_workingDays').value = c.workingDays;
   document.getElementById('lv_submitted').value = c.timesheetSubmitted;
   document.getElementById('lv_submissionDate').value = c.submissionDate ? toISO(c.submissionDate) : '';
@@ -3768,37 +3876,43 @@ document.getElementById('leaveEditBtn').addEventListener('click', ()=>{
   leaveEditForm.classList.remove('hidden');
 });
 
-leaveEditForm.addEventListener('submit', e=>{
+leaveEditForm.addEventListener('submit', async e=>{
   e.preventDefault();
   const c = talents.find(x=>x.id === editingLeaveId);
   if(!c) return;
-  c.annualLeaveEntitlement = Number(document.getElementById('lv_annualEntitlement').value);
-  c.annualLeaveTaken = Number(document.getElementById('lv_annualTaken').value);
-  c.annualLeaveBalance = c.annualLeaveEntitlement - c.annualLeaveTaken;
-  c.sickLeaveEntitlement = Number(document.getElementById('lv_sickEntitlement').value);
-  c.sickLeaveTaken = Number(document.getElementById('lv_sickTaken').value);
-  c.sickLeaveBalance = c.sickLeaveEntitlement - c.sickLeaveTaken;
-  c.offInLieuEntitlement = Number(document.getElementById('lv_oilEntitlement').value);
-  c.offInLieuTaken = Number(document.getElementById('lv_oilTaken').value);
-  c.offInLieuBalance = c.offInLieuEntitlement - c.offInLieuTaken;
-  c.unpaidLeaveTaken = Number(document.getElementById('lv_unpaidTaken').value);
-  c.mcUpload = document.getElementById('lv_mcUpload').value;
-  c.leaveApprovalStatus = document.getElementById('lv_approvalStatus').value;
-  c.timesheetMonth = document.getElementById('lv_month').value.trim();
-  c.workingDays = Number(document.getElementById('lv_workingDays').value);
-  c.timesheetSubmitted = document.getElementById('lv_submitted').value;
   const subDateVal = document.getElementById('lv_submissionDate').value;
-  c.submissionDate = subDateVal ? new Date(subDateVal) : null;
-  c.clientApproved = document.getElementById('lv_clientApproved').value;
   const appDateVal = document.getElementById('lv_approvalDate').value;
-  c.approvalDate = appDateVal ? new Date(appDateVal) : null;
-  c.overtimeHours = Number(document.getElementById('lv_overtimeHours').value);
-  c.absenceDays = Number(document.getElementById('lv_absenceDays').value);
-  c.timesheetRemarks = document.getElementById('lv_remarks').value.trim();
-  openLeaveViewModal(c.id);
-  renderOperations();
-  refreshProfileIfOpen(c);
-  showToast(`${c.name}'s timesheet & leave details updated`, checkIcon);
+  const payload = {
+    annualLeaveEntitlement: Number(document.getElementById('lv_annualEntitlement').value),
+    annualLeaveTaken: Number(document.getElementById('lv_annualTaken').value),
+    sickLeaveEntitlement: Number(document.getElementById('lv_sickEntitlement').value),
+    sickLeaveTaken: Number(document.getElementById('lv_sickTaken').value),
+    offInLieuEntitlement: Number(document.getElementById('lv_oilEntitlement').value),
+    offInLieuTaken: Number(document.getElementById('lv_oilTaken').value),
+    unpaidLeaveTaken: Number(document.getElementById('lv_unpaidTaken').value),
+    mcUpload: document.getElementById('lv_mcUpload').value,
+    leaveApprovalStatus: document.getElementById('lv_approvalStatus').value,
+    timesheetMonth: document.getElementById('lv_month').value.trim(),
+    workingDays: Number(document.getElementById('lv_workingDays').value),
+    timesheetSubmitted: document.getElementById('lv_submitted').value,
+    submissionDate: subDateVal || null,
+    clientApproved: document.getElementById('lv_clientApproved').value,
+    approvalDate: appDateVal || null,
+    overtimeHours: Number(document.getElementById('lv_overtimeHours').value),
+    absenceDays: Number(document.getElementById('lv_absenceDays').value),
+    timesheetRemarks: document.getElementById('lv_remarks').value.trim(),
+  };
+  try{
+    const updated = await api.talents.updateLeaveTimesheet(c.id, payload);
+    Object.assign(c, updated);
+    computeDerived(c);
+    openLeaveViewModal(c.id);
+    renderOperations();
+    refreshProfileIfOpen(c);
+    showToast(`${c.name}'s timesheet & leave details updated`, checkIcon);
+  }catch(err){
+    showToast(`Failed to update timesheet & leave: ${err.message}`, null);
+  }
 });
 
 /* ---------- MANAGEMENT ANALYTICS ---------- */
@@ -3817,27 +3931,10 @@ const HISTORY_MONTHS = 36;
 function addMonths(date, n){ return new Date(date.getFullYear(), date.getMonth()+n, 1); }
 const monthDates = Array.from({length:HISTORY_MONTHS}, (_,i)=> addMonths(today, i - (HISTORY_MONTHS-1)));
 
-function generateMonthlySeries(currentValue, volatility, isPercent){
-  const arr = new Array(HISTORY_MONTHS);
-  arr[HISTORY_MONTHS-1] = currentValue;
-  for(let i=HISTORY_MONTHS-2;i>=0;i--){
-    const pct = (Math.random()*2 - 1) * volatility;
-    let prev = arr[i+1] / (1+pct);
-    if(isPercent) prev = Math.min(95, Math.max(5, prev));
-    arr[i] = prev;
-  }
-  return arr;
-}
-
-/* Stable per-client 3-year monthly history, generated once so re-opening a client/chart doesn't change the numbers */
+// No fake history: real monthly snapshots only start accumulating once the app has been live
+// for a while. buildAnalyticsMetricsTable() below shows current real values only instead of a
+// fabricated multi-month trend.
 const clientHistory = {};
-clients.forEach(client=>{
-  const m = computeClientMetrics(client);
-  clientHistory[client] = {};
-  analyticsMetricDefs.forEach(def=>{
-    clientHistory[client][def.key] = generateMonthlySeries(m[def.key], def.volatility, def.key === "grossMargin");
-  });
-});
 
 /* Stable per-client mock billing & commercial details */
 function randomClientBilling(){
@@ -4013,7 +4110,19 @@ function initClientsFilters(){
     msClientsStatus.reset();
     renderClients();
   });
-  document.getElementById('clientsDownloadLink').addEventListener('click', e=>{ e.preventDefault(); showToast("This mockup does not export real data yet."); });
+  document.getElementById('clientsDownloadLink').addEventListener('click', e=>{
+    e.preventDefault();
+    exportRowsToExcel('clients.xlsx', [
+      { label: 'Client', value: r=>r.client },
+      { label: 'Industry', value: r=>r.industry },
+      { label: 'Contact Person', value: r=>r.contactPerson },
+      { label: 'Contact Email', value: r=>r.contactEmail },
+      { label: 'Contact Number', value: r=>r.contactNumber },
+      { label: 'Account Manager', value: r=>r.accountManager },
+      { label: 'Status', value: r=>r.status },
+      { label: 'Talent Count', value: r=>r.talentCount },
+    ], lastClientsRows);
+  });
 }
 function updateClientsSortArrows(){
   document.querySelectorAll('.clients-sort-caret').forEach(el=>{
@@ -4024,6 +4133,7 @@ function updateClientsSortArrows(){
   });
 }
 
+let lastClientsRows = [];
 function renderClients(){
   initClientsFilters();
   initCosmeticMonthFilter('clientsStatsMonthFilter', ()=> renderClients());
@@ -4085,6 +4195,7 @@ function renderClients(){
     if(av > bv) return 1 * clientsSortDir;
     return 0;
   });
+  lastClientsRows = rows;
 
   document.getElementById('clientsResultCount').textContent = rows.length;
   const tbody = document.getElementById('clientsTableBody');
@@ -4164,7 +4275,17 @@ function initSowFilters(){
     msSowRequired.reset();
     renderSowTable();
   });
-  document.getElementById('sowDownloadLink').addEventListener('click', e=>{ e.preventDefault(); showToast("This mockup does not export real data yet."); });
+  document.getElementById('sowDownloadLink').addEventListener('click', e=>{
+    e.preventDefault();
+    exportRowsToExcel('sow-tracking.xlsx', [
+      { label: 'Client', value: r=>r.client },
+      { label: 'Project', value: r=>r.project },
+      { label: 'SOW Required', value: r=>r.sowRequired },
+      { label: 'SOW Status', value: r=>r.sowStatus },
+      { label: 'Valid To', value: r=>xlDate(r.validTo) },
+      { label: 'Remarks', value: r=>r.remarks || '' },
+    ], lastSowRows);
+  });
 }
 function updateSowSortArrows(){
   document.querySelectorAll('.sow-sort-caret').forEach(el=>{
@@ -4174,6 +4295,7 @@ function updateSowSortArrows(){
     el.textContent = isActive ? (sowSortDir === 1 ? "▲" : "▼") : "▲";
   });
 }
+let lastSowRows = [];
 function renderSowTable(){
   initSowFilters();
   let rows = sowRecords.filter(r=>{
@@ -4194,6 +4316,7 @@ function renderSowTable(){
     if(av > bv) return 1 * sowSortDir;
     return 0;
   });
+  lastSowRows = rows;
 
   document.getElementById('sowResultCount').textContent = rows.length;
   const tbody = document.getElementById('sowTableBody');
@@ -4264,7 +4387,17 @@ function initPoFilters(){
     msPoMonth.reset();
     renderPoTable();
   });
-  document.getElementById('poDownloadLink').addEventListener('click', e=>{ e.preventDefault(); showToast("This mockup does not export real data yet."); });
+  document.getElementById('poDownloadLink').addEventListener('click', e=>{
+    e.preventDefault();
+    exportRowsToExcel('po-tracking.xlsx', [
+      { label: 'Client', value: r=>r.client },
+      { label: 'Month', value: r=>monthLabelFull(r.month) },
+      { label: 'PO Required', value: r=>r.poRequired },
+      { label: 'PO Status', value: r=>r.poStatus },
+      { label: 'PO Number', value: r=>r.poNo || '' },
+      { label: 'Remarks', value: r=>r.remarks || '' },
+    ], lastPoRows);
+  });
 }
 function updatePoSortArrows(){
   document.querySelectorAll('.po-sort-caret').forEach(el=>{
@@ -4274,6 +4407,7 @@ function updatePoSortArrows(){
     el.textContent = isActive ? (poSortDir === 1 ? "▲" : "▼") : "▲";
   });
 }
+let lastPoRows = [];
 function renderPoTable(){
   initPoFilters();
   let rows = poRecords.filter(r=>{
@@ -4295,6 +4429,7 @@ function renderPoTable(){
     if(av > bv) return 1 * poSortDir;
     return 0;
   });
+  lastPoRows = rows;
 
   document.getElementById('poResultCount').textContent = rows.length;
   const tbody = document.getElementById('poTableBody');
@@ -5323,6 +5458,7 @@ const analyticsSubTabsList = [
 ];
 let analyticsActiveSubTab = {};
 
+let lastAnalyticsClientData = [];
 function renderAnalytics(){
   if(!analyticsSortInit){
     analyticsSortInit = true;
@@ -5377,6 +5513,7 @@ function renderAnalytics(){
     if(analyticsSortTerm === "gp-asc") return a.m.grossProfit - b.m.grossProfit;
     return 0;
   });
+  lastAnalyticsClientData = clientData;
 
   container.innerHTML = clientData.map(({client, m})=>{
     const safeId = client.replace(/[^a-zA-Z0-9]/g,'_');
@@ -5543,45 +5680,26 @@ function buildWorkPassBreakdown(client){
 }
 
 function buildAnalyticsMetricsTable(client){
-  const dates = monthDates.slice(-4); // chronological: 3 months ago, 2 months ago, last month, current
-  const headerLabelsChron = dates.map((d,i)=> i===3 ? `${monthLabel(d)} (Current)` : monthLabel(d));
-  const headerLabels = [...headerLabelsChron].reverse(); // display: current -> oldest
-
-  const rows = analyticsMetricDefs.map(def=>{
-    const series = clientHistory[client][def.key];
-    const last4 = series.slice(-4); // chronological: [3moAgo, 2moAgo, 1moAgo, current]
-    const cellsChron = last4.map((v,i)=>{
-      if(i===0) return `<td class="py-2 px-2 text-right whitespace-nowrap">${def.fmt(v)}</td>`;
-      const delta = pctChange(v, last4[i-1]);
-      return `<td class="py-2 px-2 text-right whitespace-nowrap">${def.fmt(v)} <span class="inline-block ml-1">${trendBadge(delta)}</span></td>`;
-    });
-    const cells = [...cellsChron].reverse().join(''); // display: current -> oldest
-    const overallDelta = pctChange(last4[3], last4[0]);
-    return `
+  // No fake month-over-month trend: only one real data point exists (now). Real historical
+  // trending will populate here once the system has been recording monthly snapshots for a while.
+  const m = computeClientMetrics(client);
+  const rows = analyticsMetricDefs.map(def=>`
       <tr class="border-t border-[var(--border)]">
-        <td class="py-2 pr-3 whitespace-nowrap">
-          <span class="metric-link text-sm font-medium link cursor-pointer" data-client="${client}" data-metric="${def.key}">${def.label}</span>
-        </td>
-        ${cells}
-        <td class="py-2 pl-3 whitespace-nowrap">${trendBadge(overallDelta)}</td>
-      </tr>`;
-  }).join('');
+        <td class="py-2 pr-3 whitespace-nowrap text-sm font-medium">${def.label}</td>
+        <td class="py-2 px-2 text-right whitespace-nowrap">${def.fmt(m[def.key])}</td>
+      </tr>`).join('');
 
   return `
-    <table class="w-full text-xs min-w-[720px]">
+    <table class="w-full text-xs min-w-[360px]">
       <thead>
         <tr class="text-left text-[10px] uppercase tracking-wide text-[var(--muted)]">
           <th class="py-1 pr-3 font-semibold">Metric</th>
-          <th class="py-1 px-2 text-right font-semibold whitespace-nowrap">${headerLabels[0]}</th>
-          <th class="py-1 px-2 text-right font-semibold whitespace-nowrap">${headerLabels[1]}</th>
-          <th class="py-1 px-2 text-right font-semibold whitespace-nowrap">${headerLabels[2]}</th>
-          <th class="py-1 px-2 text-right font-semibold whitespace-nowrap">${headerLabels[3]}</th>
-          <th class="py-1 pl-3 text-right font-semibold whitespace-nowrap">vs 3 Mo Ago</th>
+          <th class="py-1 px-2 text-right font-semibold whitespace-nowrap">Current</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
     </table>
-    <p class="text-[11px] text-[var(--muted)] mt-2">Click a metric name to see its full trend chart.</p>`;
+    <p class="text-[11px] text-[var(--muted)] mt-2">Monthly trend history will appear here once the system has recorded a few months of real data.</p>`;
 }
 
 /* ---------- Metric Trend Chart Modal ---------- */
@@ -5834,8 +5952,18 @@ function showBillingEdit(client, safeId){
     }
   });
 }
-document.getElementById('exportExcelBtn').addEventListener('click', ()=> showToast("This mockup does not export real files yet."));
-document.getElementById('exportPdfBtn').addEventListener('click', ()=> showToast("This mockup does not export real files yet."));
+document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
+  exportRowsToExcel('client-analysis.xlsx', [
+    { label: 'Client', value: ({client})=>client },
+    { label: 'Talents', value: ({m})=>m.count },
+    { label: 'Monthly Revenue', value: ({m})=>Math.round(m.monthlyRevenue) },
+    { label: 'Monthly Cost', value: ({m})=>Math.round(m.monthlyCost) },
+    { label: 'Gross Profit', value: ({m})=>Math.round(m.grossProfit) },
+    { label: 'Gross Margin %', value: ({m})=>m.grossMargin.toFixed(1) },
+    { label: 'Work Pass Admin Fee', value: ({m})=>Math.round(m.workPassAdminFee) },
+  ], lastAnalyticsClientData);
+});
+document.getElementById('exportPdfBtn').addEventListener('click', ()=> showToast("PDF export isn't available yet — use “Export to Excel” for now."));
 
 /* ---------- OFFBOARDING ---------- */
 function computeFinalSalary(c){
@@ -5889,7 +6017,20 @@ function initOffboardingFilters(){
     msOffboardingStatus.reset();
     renderOffboarding();
   });
-  document.getElementById('offboardingDownloadLink').addEventListener('click', e=>{ e.preventDefault(); showToast("This mockup does not export real data yet."); });
+  document.getElementById('offboardingDownloadLink').addEventListener('click', e=>{
+    e.preventDefault();
+    exportRowsToExcel('offboarding.xlsx', [
+      { label: 'ID', value: c=>`C${String(c.id).padStart(6,'0')}` },
+      { label: 'Name', value: c=>c.name },
+      { label: 'Client', value: c=>c.client },
+      { label: 'Exit Status', value: c=>c.exitStatus },
+      { label: 'Last Working Day', value: c=>xlDate(c.lastWorkingDay) },
+      { label: 'Resignation Reason', value: c=>c.resignationReason },
+      { label: 'Notice Served', value: c=>c.noticeServed },
+      { label: 'Client Notified', value: c=>c.clientNotified },
+      { label: 'Exit Docs Completed', value: c=>c.exitDocsCompleted },
+    ], lastOffboardingRows);
+  });
 }
 function updateOffboardingSortArrows(){
   document.querySelectorAll('.offboarding-sort-caret').forEach(el=>{
@@ -5901,6 +6042,7 @@ function updateOffboardingSortArrows(){
 }
 
 /* ---------- Offboarding Checklist widget ---------- */
+let lastOffboardingRows = [];
 function renderOffboarding(){
   initOffboardingFilters();
   initCosmeticMonthFilter('offboardingStatsMonthFilter', ()=> renderOffboarding());
@@ -5962,6 +6104,7 @@ function renderOffboarding(){
     if(av > bv) return 1 * offboardingSortDir;
     return 0;
   });
+  lastOffboardingRows = rows;
 
   document.getElementById('offboardingResultCount').textContent = rows.length;
   const tbody = document.getElementById('offboardingTableBody');
@@ -6100,24 +6243,33 @@ document.getElementById('offboardEditBtn').addEventListener('click', ()=>{
   offboardEditForm.classList.remove('hidden');
 });
 
-offboardEditForm.addEventListener('submit', e=>{
+offboardEditForm.addEventListener('submit', async e=>{
   e.preventDefault();
   const c = talents.find(x=>x.id === editingOffboardId);
   if(!c) return;
-  c.lastWorkingDay = new Date(document.getElementById('ob_lastWorkingDay').value);
-  c.resignationReason = document.getElementById('ob_resignationReason').value;
-  c.noticeServed = document.getElementById('ob_noticeServed').value;
   const cancelVal = document.getElementById('ob_workPassCancellationDate').value;
-  c.workPassCancellationDate = cancelVal ? new Date(cancelVal) : null;
-  c.clientNotified = document.getElementById('ob_clientNotified').value;
-  c.replacementRequired = document.getElementById('ob_replacementRequired').value;
-  c.finalInvoiceIssued = document.getElementById('ob_finalInvoiceIssued').value;
-  c.exitDocsCompleted = document.getElementById('ob_exitDocsCompleted').value;
-  c.offboardingRemarks = document.getElementById('ob_remarks').value.trim();
-  openOffboardViewModal(c.id);
-  renderOffboarding();
-  refreshProfileIfOpen(c);
-  showToast(`${c.name}'s offboarding details updated`, checkIcon);
+  const payload = {
+    lastWorkingDay: document.getElementById('ob_lastWorkingDay').value,
+    resignationReason: document.getElementById('ob_resignationReason').value,
+    noticeServed: document.getElementById('ob_noticeServed').value,
+    workPassCancellationDate: cancelVal || null,
+    clientNotified: document.getElementById('ob_clientNotified').value,
+    replacementRequired: document.getElementById('ob_replacementRequired').value,
+    finalInvoiceIssued: document.getElementById('ob_finalInvoiceIssued').value,
+    exitDocsCompleted: document.getElementById('ob_exitDocsCompleted').value,
+    offboardingRemarks: document.getElementById('ob_remarks').value.trim(),
+  };
+  try{
+    const updated = await api.talents.updateOffboarding(c.id, payload);
+    Object.assign(c, updated);
+    computeDerived(c);
+    openOffboardViewModal(c.id);
+    renderOffboarding();
+    refreshProfileIfOpen(c);
+    showToast(`${c.name}'s offboarding details updated`, checkIcon);
+  }catch(err){
+    showToast(`Failed to update offboarding: ${err.message}`, null);
+  }
 });
 
 /* ---------- Init ---------- */
