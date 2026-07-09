@@ -99,6 +99,11 @@
   .filter-input:focus, .select-basic:focus{ border-color:var(--blue); box-shadow:0 0 0 2px var(--blue-tint); }
   .filter-input::placeholder{ color:#A6ADB4; }
 
+  .pw-field-wrap{ position:relative; }
+  .pw-field-wrap .filter-input{ padding-right:34px; }
+  .pw-toggle{ position:absolute; right:6px; top:50%; transform:translateY(-50%); background:none; border:none; padding:4px; cursor:pointer; color:var(--muted); display:flex; }
+  .pw-toggle:hover{ color:var(--text); }
+
   .ms-wrap{ position:relative; }
   .ms-btn{ cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:6px; text-align:left; }
   .ms-btn::after{ content:""; width:0; height:0; border-left:4px solid transparent; border-right:4px solid transparent; border-top:5px solid var(--muted); flex-shrink:0; }
@@ -2255,11 +2260,17 @@
     </div>
     <form id="changePasswordForm" class="border-t border-[var(--border)] pt-4 space-y-3" novalidate>
       <div class="text-sm font-semibold">Change Password</div>
-      <div>
+      <div class="pw-field-wrap">
         <input required id="cp_current" type="password" autocomplete="current-password" class="filter-input" placeholder="Current password" />
+        <button type="button" class="pw-toggle" data-target="cp_current" aria-label="Show password">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
       </div>
-      <div>
+      <div class="pw-field-wrap">
         <input required id="cp_new" type="password" autocomplete="new-password" class="filter-input" placeholder="New password" />
+        <button type="button" class="pw-toggle" data-target="cp_new" aria-label="Show password">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
       </div>
       <div id="cp_reqStatus" class="hidden text-xs font-medium flex items-center gap-1.5">
         <span id="cp_reqIcon"></span><span id="cp_reqText"></span>
@@ -2277,8 +2288,11 @@
         <li data-rule="number" class="flex items-center gap-1.5" style="color:var(--muted)">○ One number</li>
         <li data-rule="special" class="flex items-center gap-1.5" style="color:var(--muted)">○ One special character (e.g. ! @ # $ %)</li>
       </ul>
-      <div>
+      <div class="pw-field-wrap">
         <input required id="cp_confirm" type="password" autocomplete="new-password" class="filter-input" placeholder="Confirm new password" />
+        <button type="button" class="pw-toggle" data-target="cp_confirm" aria-label="Show password">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
       </div>
       <div id="cp_matchStatus" class="hidden text-xs font-medium flex items-center gap-1.5">
         <span id="cp_matchIcon"></span><span id="cp_matchText"></span>

@@ -1938,6 +1938,18 @@ function passwordStrength(rules){
   if(metCount <= 4) return { label: 'Moderate', color: 'var(--amber-dot)', textColor: 'var(--amber-text)', pct: 60 };
   return { label: 'Strong', color: 'var(--green-dot)', textColor: 'var(--green-text)', pct: 100 };
 }
+const EYE_ICON = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+const EYE_OFF_ICON = '<path d="M17.94 17.94A10.94 10.94 0 0112 20c-7 0-11-8-11-8a20.3 20.3 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a20.3 20.3 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+document.querySelectorAll('.pw-toggle').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const input = document.getElementById(btn.dataset.target);
+    const showing = input.type === 'text';
+    input.type = showing ? 'password' : 'text';
+    btn.querySelector('svg').innerHTML = showing ? EYE_ICON : EYE_OFF_ICON;
+    btn.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+  });
+});
+
 function setStatusRow(prefix, state, text){
   // state: 'red' | 'amber' | 'green' | null(hidden)
   const row = document.getElementById(prefix + 'Status');
