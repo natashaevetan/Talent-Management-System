@@ -1938,32 +1938,70 @@ function passwordStrength(rules){
   if(metCount <= 4) return { label: 'Moderate', color: 'var(--amber-dot)', textColor: 'var(--amber-text)', pct: 60 };
   return { label: 'Strong', color: 'var(--green-dot)', textColor: 'var(--green-text)', pct: 100 };
 }
+function setStatusRow(prefix, state, text){
+  // state: 'red' | 'amber' | 'green' | null(hidden)
+  const row = document.getElementById(prefix + 'Status');
+  const icon = document.getElementById(prefix + 'Icon');
+  const label = document.getElementById(prefix + 'Text');
+  if(!state){
+    row.classList.add('hidden');
+    return;
+  }
+  row.classList.remove('hidden');
+  const meta = {
+    red: { symbol: '✗', color: 'var(--red-text)' },
+    amber: { symbol: '✗', color: 'var(--amber-text)' },
+    green: { symbol: '✓', color: 'var(--green-text)' },
+  }[state];
+  icon.textContent = meta.symbol;
+  icon.style.color = meta.color;
+  label.style.color = meta.color;
+  label.textContent = text;
+}
+
 function updatePasswordChecklist(){
   const pw = document.getElementById('cp_new').value;
+  const confirmPw = document.getElementById('cp_confirm').value;
   const rules = evaluatePassword(pw);
   document.querySelectorAll('#cp_criteria li[data-rule]').forEach(li=>{
     const met = rules[li.dataset.rule];
     li.style.color = met ? 'var(--green-text)' : 'var(--muted)';
     li.textContent = (met ? '✓ ' : '○ ') + li.textContent.slice(2);
   });
-  const allMet = Object.values(rules).every(Boolean);
+  const metCount = Object.values(rules).filter(Boolean).length;
+  const allMet = metCount === 5;
   const bar = document.getElementById('cp_strengthBar');
   const label = document.getElementById('cp_strengthLabel');
   if(pw.length === 0){
     bar.style.width = '0%';
-    label.textContent = ' ';
+    label.textContent = ' ';
+    setStatusRow('cp_req', null);
   } else {
     const s = passwordStrength(rules);
     bar.style.width = s.pct + '%';
     bar.style.background = s.color;
     label.textContent = s.label;
     label.style.color = s.textColor;
+    if(allMet) setStatusRow('cp_req', 'green', 'Meets all requirements');
+    else if(metCount >= 3) setStatusRow('cp_req', 'amber', 'Almost there — not all requirements met');
+    else setStatusRow('cp_req', 'red', 'Does not meet requirements');
   }
+
+  if(confirmPw.length === 0){
+    setStatusRow('cp_match', null);
+  } else if(confirmPw === pw){
+    setStatusRow('cp_match', 'green', 'Passwords match');
+  } else {
+    setStatusRow('cp_match', 'red', 'Passwords do not match');
+  }
+
   const current = document.getElementById('cp_current').value;
-  document.getElementById('cp_submitBtn').disabled = !(allMet && current.length > 0);
+  const passwordsMatch = confirmPw.length > 0 && confirmPw === pw;
+  document.getElementById('cp_submitBtn').disabled = !(allMet && current.length > 0 && passwordsMatch);
 }
 document.getElementById('cp_new').addEventListener('input', updatePasswordChecklist);
 document.getElementById('cp_current').addEventListener('input', updatePasswordChecklist);
+document.getElementById('cp_confirm').addEventListener('input', updatePasswordChecklist);
 
 document.getElementById('viewProfileBtn').addEventListener('click', ()=>{
   closeAllDropdowns();
@@ -1974,13 +2012,16 @@ document.getElementById('viewProfileBtn').addEventListener('click', ()=>{
   }
   document.getElementById('cp_current').value = '';
   document.getElementById('cp_new').value = '';
+  document.getElementById('cp_confirm').value = '';
   document.getElementById('cp_error').classList.add('hidden');
   document.querySelectorAll('#cp_criteria li[data-rule]').forEach(li=>{
     li.style.color = 'var(--muted)';
     li.textContent = '○ ' + li.textContent.slice(2);
   });
   document.getElementById('cp_strengthBar').style.width = '0%';
-  document.getElementById('cp_strengthLabel').textContent = ' ';
+  document.getElementById('cp_strengthLabel').textContent = ' ';
+  setStatusRow('cp_req', null);
+  setStatusRow('cp_match', null);
   document.getElementById('cp_submitBtn').disabled = true;
   profileInfoModalOverlay.classList.add('open');
   profileInfoModal.classList.add('open');

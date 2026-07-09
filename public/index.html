@@ -2261,6 +2261,9 @@
       <div>
         <input required id="cp_new" type="password" autocomplete="new-password" class="filter-input" placeholder="New password" />
       </div>
+      <div id="cp_reqStatus" class="hidden text-xs font-medium flex items-center gap-1.5">
+        <span id="cp_reqIcon"></span><span id="cp_reqText"></span>
+      </div>
       <div>
         <div class="h-1.5 rounded-full bg-[#EEF0F2] overflow-hidden">
           <div id="cp_strengthBar" class="h-full rounded-full transition-all" style="width:0%;background:var(--red-dot)"></div>
@@ -2274,6 +2277,12 @@
         <li data-rule="number" class="flex items-center gap-1.5" style="color:var(--muted)">○ One number</li>
         <li data-rule="special" class="flex items-center gap-1.5" style="color:var(--muted)">○ One special character (e.g. ! @ # $ %)</li>
       </ul>
+      <div>
+        <input required id="cp_confirm" type="password" autocomplete="new-password" class="filter-input" placeholder="Confirm new password" />
+      </div>
+      <div id="cp_matchStatus" class="hidden text-xs font-medium flex items-center gap-1.5">
+        <span id="cp_matchIcon"></span><span id="cp_matchText"></span>
+      </div>
       <div id="cp_error" class="hidden text-xs rounded-lg px-3 py-2" style="background:var(--red-bg);color:var(--red-text)"></div>
       <button type="submit" id="cp_submitBtn" disabled class="w-full rounded-lg py-2 text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed" style="background:var(--blue)">Update Password</button>
     </form>
