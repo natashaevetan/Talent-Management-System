@@ -67,7 +67,8 @@ const entityNames = ["DHC", "Elitez", "E&A", "FMCG"];
 const industries = ["Banking & Finance", "Telecommunications", "Technology", "Government", "Healthcare", "Retail & E-commerce", "Aviation", "Real Estate", "Manufacturing", "Media & Publishing", "Education"];
 const accountManagers = ["Natasha", "Marcus Tan", "Priya Nair", "Daniel Wong", "Farah Aziz"];
 
-const TALENT_COUNT = 80;
+const TALENT_COUNT = 50;
+const CLIENT_COUNT = 5;
 
 /* ---------- Per-entity field generators (ported 1:1 from the mockup) ---------- */
 
@@ -278,7 +279,7 @@ async function main() {
 
   // Clients + billing
   const clients = await Promise.all(
-    baseClients.map((name) => {
+    baseClients.slice(0, CLIENT_COUNT).map((name) => {
       const profile = randomClientProfile();
       return prisma.client.create({
         data: {
