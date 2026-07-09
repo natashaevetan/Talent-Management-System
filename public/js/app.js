@@ -3501,26 +3501,35 @@ document.getElementById('cancelPayrollModal').addEventListener('click', ()=>{
   showPayrollView();
 });
 
-payrollEditForm.addEventListener('submit', e=>{
+payrollEditForm.addEventListener('submit', async e=>{
   e.preventDefault();
   const c = talents.find(x=>x.id === editingPayrollId);
   if(!c) return;
-  c.salary = Number(document.getElementById('pe_salary').value);
-  c.skillsDevelopmentLevy = Number(document.getElementById('pe_skillsDevelopmentLevy').value);
-  c.wica = Number(document.getElementById('pe_wica').value);
-  c.medicalInsuranceCost = Number(document.getElementById('pe_medicalInsuranceCost').value);
-  c.allowances = Number(document.getElementById('pe_allowances').value);
-  c.claimsReimbursements = Number(document.getElementById('pe_claimsReimbursements').value);
-  c.overtime = Number(document.getElementById('pe_overtime').value);
-  c.noPayLeaveDeduction = Number(document.getElementById('pe_noPayLeaveDeduction').value);
-  c.otherStatutoryCosts = Number(document.getElementById('pe_otherStatutoryCosts').value);
-  renderPayrollView(c);
-  showPayrollView();
-  renderFinance();
-  renderStats();
-  renderTable();
-  refreshProfileIfOpen(c);
-  showToast(`${c.name}'s payroll details updated`, checkIcon);
+  const payload = {
+    salary: Number(document.getElementById('pe_salary').value),
+    skillsDevelopmentLevy: Number(document.getElementById('pe_skillsDevelopmentLevy').value),
+    wica: Number(document.getElementById('pe_wica').value),
+    medicalInsuranceCost: Number(document.getElementById('pe_medicalInsuranceCost').value),
+    allowances: Number(document.getElementById('pe_allowances').value),
+    claimsReimbursements: Number(document.getElementById('pe_claimsReimbursements').value),
+    overtime: Number(document.getElementById('pe_overtime').value),
+    noPayLeaveDeduction: Number(document.getElementById('pe_noPayLeaveDeduction').value),
+    otherStatutoryCosts: Number(document.getElementById('pe_otherStatutoryCosts').value),
+  };
+  try{
+    const updated = await api.talents.updatePayroll(c.id, payload);
+    Object.assign(c, updated);
+    computeDerived(c);
+    renderPayrollView(c);
+    showPayrollView();
+    renderFinance();
+    renderStats();
+    renderTable();
+    refreshProfileIfOpen(c);
+    showToast(`${c.name}'s payroll details updated`, checkIcon);
+  }catch(err){
+    showToast(`Failed to update payroll: ${err.message}`, null);
+  }
 });
 
 /* ---------- OPERATIONS (LEAVE & TIMESHEETS) ---------- */
