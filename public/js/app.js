@@ -840,6 +840,9 @@ function renderTable(){
 
   if(rows.length === 0){
     tbody.innerHTML = "";
+    emptyState.textContent = talents.length === 0
+      ? "No talents yet — click “Import from Excel” to bulk-add talents, or “+ Add a Talent” to add one."
+      : "No talents match these filters. Try clearing the search or filters above.";
     emptyState.classList.remove('hidden');
   } else {
     emptyState.classList.add('hidden');
