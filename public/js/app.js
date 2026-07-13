@@ -1133,7 +1133,12 @@ function parseImportWorkbook(workbook){
       if(key === 'name') return;
       const val = get(key);
       if(val === null || val === undefined || val === '') return;
-      if(IMPORT_DATE_KEYS.has(key)) row[key] = (val instanceof Date ? val : new Date(val)).toISOString();
+      if(IMPORT_DATE_KEYS.has(key)){
+        // Real sheets sometimes have free text ("Pending Approval") in a date column instead
+        // of an actual date — skip the field rather than crashing the whole import on it.
+        const d = val instanceof Date ? val : new Date(val);
+        if(!isNaN(d.getTime())) row[key] = d.toISOString();
+      }
       else if(IMPORT_NUMBER_KEYS.has(key)) row[key] = Number(val);
       else row[key] = String(val).trim();
     });
