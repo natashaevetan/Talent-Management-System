@@ -385,7 +385,13 @@ function exportRowsToExcel(filename, columns, rows){
 }
 function xlDate(d){ return d ? fmtDate(d) : ''; }
 
-function fmtDate(d){ return d ? d.toLocaleDateString('en-SG', { day:'2-digit', month:'short', year:'numeric' }) : 'N/A'; }
+/* Placeholder for any field a bulk import (or a manually-created record) left blank —
+   lets incomplete profiles surface as a visible "-" to fill in later, instead of a raw
+   "null"/"undefined"/blank cell or a crash. Never applied to pre-built HTML (pills etc.),
+   only to plain scalar values. */
+function dash(v){ return (v===null || v===undefined || (typeof v==='string' && v.trim()==='')) ? '-' : v; }
+
+function fmtDate(d){ return d ? d.toLocaleDateString('en-SG', { day:'2-digit', month:'short', year:'numeric' }) : '-'; }
 function fmtMoney(n){ return "S$ " + n.toLocaleString('en-SG'); }
 function fmtMoneyCompact(n){
   const abs = Math.abs(n);
@@ -869,8 +875,8 @@ function renderTable(){
           <td class="px-4 py-1 whitespace-nowrap ${c.contractDaysLeft<=30?'date-alert':''}">${fmtDate(c.contractEnd)}</td>
           <td class="px-4 py-1 whitespace-nowrap"><span class="pill" style="${contractBucket.style}">${contractBucket.label}</span></td>
           <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(computeTotalPayrollCost(c))}</td>
-          <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">${c.caseOwner}</td>
-          <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">${c.entity}</td>
+          <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">${dash(c.caseOwner)}</td>
+          <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">${dash(c.entity)}</td>
         </tr>
       `;
     }).join('');
@@ -927,7 +933,7 @@ function renderHeaderSearchResults(term){
       html += talentMatches.map(c=>`
         <div class="header-search-result header-search-talent px-4 py-2.5 text-sm cursor-pointer hover:bg-[#F8FAFC] border-b border-[var(--border)]" data-id="${c.id}">
           <div class="font-medium">${c.name}</div>
-          <div class="text-xs text-[var(--muted)]">${c.client} · ${c.projectType}</div>
+          <div class="text-xs text-[var(--muted)]">${c.client} · ${dash(c.projectType)}</div>
         </div>`).join('');
     }
     if(clientMatches.length){
@@ -1339,10 +1345,10 @@ function openEditPanel(id){
   if(!c) return;
   editingId = id;
   document.getElementById('editPanelName').textContent = c.name;
-  document.getElementById('editPanelSub').textContent = `${c.client} · ${c.projectType}`;
+  document.getElementById('editPanelSub').textContent = `${c.client} · ${dash(c.projectType)}`;
   document.getElementById('editReadonlyInfo').innerHTML = `
     <div>Client Attached: <span class="font-medium text-[var(--text)]">${c.client}</span></div>
-    <div>Project Type: <span class="font-medium text-[var(--text)]">${c.projectType}</span></div>
+    <div>Project Type: <span class="font-medium text-[var(--text)]">${dash(c.projectType)}</span></div>
   `;
   document.getElementById('e_salary').value = c.salary;
   document.getElementById('e_chargeRate').value = c.chargeRate;
@@ -1413,7 +1419,7 @@ function initProfileMonthFilter(selectId){
 }
 
 function dlRow(label, value){
-  return `<div class="flex justify-between gap-4"><dt class="text-[var(--muted)]">${label}</dt><dd class="font-medium text-right">${value}</dd></div>`;
+  return `<div class="flex justify-between gap-4"><dt class="text-[var(--muted)]">${label}</dt><dd class="font-medium text-right">${dash(value)}</dd></div>`;
 }
 function editTextRow(label, id, value){
   return `<div class="flex items-center justify-between gap-3 py-0.5">
@@ -2860,8 +2866,8 @@ function renderWorkpassTable(){
             ${needsRenewalCols ? `<span class="pill" style="${renewalStatusPillStyleContract(c.renewalStatus)}">${renewalStatusDisplayLabel(c.renewalStatus)}</span>` : '<span class="text-[var(--muted)]">—</span>'}
           </td>
           <td class="px-4 py-1 text-[var(--muted)] max-w-[220px] truncate" title="${c.passRenewalRemarks || ''}">${c.passRenewalRemarks || '—'}</td>
-          <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">${c.caseOwner}</td>
-          <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">${c.entity}</td>
+          <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">${dash(c.caseOwner)}</td>
+          <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">${dash(c.entity)}</td>
           <td class="px-4 py-1 whitespace-nowrap">
             ${!isCitizenOrPR ? `<button type="button" class="update-status-btn renewal-update-status-btn" data-id="${c.id}" data-type="workpass" title="${stale ? 'Date of Issue, Date of Expiry and Days Left to Expiry have not been updated since this renewal was marked Completed' : ''}">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
@@ -3092,8 +3098,8 @@ function renderContracts(){
         ${needsRenewalCols ? `<span class="pill" style="${renewalStatusPillStyleContract(c.contractRenewalStatus)}">${renewalStatusDisplayLabel(c.contractRenewalStatus)}</span>` : '<span class="text-[var(--muted)]">—</span>'}
       </td>
       <td class="px-4 py-1 text-[var(--muted)] max-w-[220px] truncate" title="${c.renewalRemarks || ''}">${c.renewalRemarks || '—'}</td>
-      <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">${c.caseOwner}</td>
-      <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">${c.entity}</td>
+      <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">${dash(c.caseOwner)}</td>
+      <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">${dash(c.entity)}</td>
       <td class="px-4 py-1 whitespace-nowrap">
         <button type="button" class="update-status-btn renewal-update-status-btn" data-id="${c.id}" data-type="contract" title="${stale ? 'Date of Commencement, Date of Expiry and Days Left to Expiry have not been updated since this renewal was marked Completed' : ''}">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
@@ -3576,7 +3582,7 @@ function initBillingFilters(){
     exportRowsToExcel('talent-billing.xlsx', [
       { label: 'ID', value: c=>`C${String(c.id).padStart(6,'0')}` },
       { label: 'Name', value: c=>c.name },
-      { label: 'Client / Project', value: c=>`${c.client} - ${c.projectType}` },
+      { label: 'Client / Project', value: c=>`${c.client} - ${dash(c.projectType)}` },
       { label: 'Charge Rate', value: c=>c.chargeRate },
       { label: 'Invoice Number', value: c=>c.talentInvoiceNumber },
       { label: 'Invoice Date', value: c=>xlDate(c.talentInvoiceDate) },
@@ -3678,7 +3684,7 @@ function renderBilling(){
       <td class="px-4 py-1 font-medium whitespace-nowrap">
         <span class="billing-name-link cursor-pointer hover:underline hover:text-[var(--blue-dark)]" data-id="${c.id}">${c.name}</span>
       </td>
-      <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">${c.client} – ${c.projectType}</td>
+      <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">${c.client} – ${dash(c.projectType)}</td>
       <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(c.chargeRate)}</td>
       <td class="px-4 py-1 whitespace-nowrap">${c.talentInvoiceNumber}</td>
       <td class="px-4 py-1 whitespace-nowrap">${fmtDate(c.talentInvoiceDate)}</td>
@@ -4776,8 +4782,8 @@ function renderPolicyTable(){
         ${needsRenewalCols ? `<span class="pill" style="${renewalStatusPillStyleContract(c.policyRenewalStatus)}">${renewalStatusDisplayLabel(c.policyRenewalStatus)}</span>` : '<span class="text-[var(--muted)]">—</span>'}
       </td>
       <td class="px-4 py-1 text-[var(--muted)] max-w-[220px] truncate" title="${c.policyRemarks || ''}">${c.policyRemarks || '—'}</td>
-      <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">${c.caseOwner}</td>
-      <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">${c.entity}</td>
+      <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">${dash(c.caseOwner)}</td>
+      <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">${dash(c.entity)}</td>
       <td class="px-4 py-1 whitespace-nowrap">
         ${hasPolicy ? `<button type="button" class="update-status-btn renewal-update-status-btn" data-id="${c.id}" data-type="insurance" title="${stale ? 'Date of Issue, Date of Expiry and Days Left to Expiry have not been updated since this renewal was marked Completed' : ''}">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
@@ -4995,8 +5001,8 @@ function renderRenewalContract(){
         ${needsRenewalCols ? `<span class="pill" style="${renewalStatusPillStyleContract(c.contractRenewalStatus)}">${renewalStatusDisplayLabel(c.contractRenewalStatus)}</span>` : '<span class="text-[var(--muted)]">—</span>'}
       </td>
       <td class="px-4 py-1 text-[var(--muted)] max-w-[220px] truncate" title="${c.renewalRemarks || ''}">${c.renewalRemarks || '—'}</td>
-      <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">${c.caseOwner}</td>
-      <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">${c.entity}</td>
+      <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">${dash(c.caseOwner)}</td>
+      <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">${dash(c.entity)}</td>
       <td class="px-4 py-1 whitespace-nowrap">
         <button type="button" class="update-status-btn renewal-update-status-btn" data-id="${c.id}" data-type="contract" title="${stale ? 'Date of Commencement, Date of Expiry and Days Left to Expiry have not been updated since this renewal was marked Completed' : ''}">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
@@ -5305,8 +5311,8 @@ function renderRenewalWorkpass(){
         ${needsRenewalCols ? `<span class="pill" style="${renewalStatusPillStyleContract(c.renewalStatus)}">${renewalStatusDisplayLabel(c.renewalStatus)}</span>` : '<span class="text-[var(--muted)]">—</span>'}
       </td>
       <td class="px-4 py-1 text-[var(--muted)] max-w-[220px] truncate" title="${c.passRenewalRemarks || ''}">${c.passRenewalRemarks || '—'}</td>
-      <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">${c.caseOwner}</td>
-      <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">${c.entity}</td>
+      <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">${dash(c.caseOwner)}</td>
+      <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">${dash(c.entity)}</td>
       <td class="px-4 py-1 whitespace-nowrap">
         <button type="button" class="update-status-btn renewal-update-status-btn" data-id="${c.id}" data-type="workpass" title="${stale ? 'Date of Issue, Date of Expiry and Days Left to Expiry have not been updated since this renewal was marked Completed' : ''}">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
@@ -6371,7 +6377,7 @@ function openOffboardViewModal(id){
   editingOffboardId = id;
   const exitStatus = c.contractDaysLeft < 0 ? "Exited" : "Pending Exit";
   document.getElementById('offboardModalName').textContent = c.name;
-  document.getElementById('offboardModalSub').textContent = `${c.client} · ${c.projectType} · ${exitStatus}`;
+  document.getElementById('offboardModalSub').textContent = `${c.client} · ${dash(c.projectType)} · ${exitStatus}`;
 
   document.getElementById('offboardViewFieldsTalent').innerHTML = [
     dlRow("Client Attached", c.client),
