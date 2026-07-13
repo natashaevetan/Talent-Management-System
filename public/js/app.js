@@ -95,7 +95,7 @@ function contractStatusDisplay(c){
 /* Work Pass Status column: layers manual "Pending Application" / "Inactive" overrides (and N/A
    for lifetime Citizen/PR passes) on top of the automatic days-left bucket. */
 function passStatusDisplay(c){
-  if(["Singapore Citizen","PR"].includes(c.workPassType)) return { label: "N/A", style: naPillStyle };
+  if(!c.workPassType || ["Singapore Citizen","PR"].includes(c.workPassType)) return { label: "N/A", style: naPillStyle };
   if(c.passLifecycleStatus === "Pending Application") return { label: "Pending Application", style: `background:var(--turquoise-bg);color:var(--turquoise-text)` };
   if(c.passLifecycleStatus === "Inactive") return { label: "Inactive", style: `background:#E2E5E9;color:#43494F` };
   return contractStatusBucket(c.passDaysLeft);
@@ -385,7 +385,7 @@ function exportRowsToExcel(filename, columns, rows){
 }
 function xlDate(d){ return d ? fmtDate(d) : ''; }
 
-function fmtDate(d){ return d.toLocaleDateString('en-SG', { day:'2-digit', month:'short', year:'numeric' }); }
+function fmtDate(d){ return d ? d.toLocaleDateString('en-SG', { day:'2-digit', month:'short', year:'numeric' }) : 'N/A'; }
 function fmtMoney(n){ return "S$ " + n.toLocaleString('en-SG'); }
 function fmtMoneyCompact(n){
   const abs = Math.abs(n);
@@ -850,7 +850,7 @@ function renderTable(){
       const rowClass = c.alert ? "row-alert" : "";
       const contractBucket = contractStatusDisplay(c);
       const passBucket = passStatusDisplay(c);
-      const isCitizenOrPR = ["Singapore Citizen","PR"].includes(c.workPassType);
+      const isCitizenOrPR = !c.workPassType || ["Singapore Citizen","PR"].includes(c.workPassType);
       const passExpiryDisplay = isCitizenOrPR ? "N/A" : fmtDate(c.passExpiry);
 
       return `
@@ -1649,7 +1649,7 @@ function renderTalentProfile(c){
 
   const passAlert = c.passDaysLeft <= 30;
   const contractAlert = c.contractDaysLeft <= 30;
-  const isCitizenOrPR = ["Singapore Citizen","PR"].includes(c.workPassType);
+  const isCitizenOrPR = !c.workPassType || ["Singapore Citizen","PR"].includes(c.workPassType);
 
   /* ----- Personal Detail tab ----- */
   document.getElementById('profilePersonalEditBar').innerHTML = editBarHtml('personal');
@@ -2838,7 +2838,7 @@ function renderWorkpassTable(){
   } else {
     empty.classList.add('hidden');
     tbody.innerHTML = pageRows.map(c=>{
-      const isCitizenOrPR = ["Singapore Citizen","PR"].includes(c.workPassType);
+      const isCitizenOrPR = !c.workPassType || ["Singapore Citizen","PR"].includes(c.workPassType);
       const bucket = passStatusDisplay(c);
       const needsRenewalCols = bucket.label === "Requires Renewal" || bucket.label === "Eligible for Renewal";
       const stale = needsRenewalCols && isPassRenewalStale(c);
