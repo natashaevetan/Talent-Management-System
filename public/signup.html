@@ -9,87 +9,79 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg-page:#F4F5F7;
-    --bg-panel:#FFFFFF;
-    --border:#E1E4E8;
-    --text:#1B2733;
-    --muted:#6B7480;
+    --bg-page:#18191A;
+    --text:#E4E6EB;
+    --muted:#8A8D91;
+    --border:#3E4042;
     --blue:#3E7CC2;
     --blue-dark:#2C64A8;
-    --blue-tint:#EAF3FC;
-    --red-bg:#FBE7E7; --red-text:#B3261E;
-    --amber-text:#93600A;
-    --green-bg:#E4F5E9; --green-text:#1E7E34; --green-dot:#2E9E4A;
-    --amber-dot:#D98C0F; --red-dot:#E24C41;
+    --red-bg:#3A1F1F; --red-text:#F87171;
+    --amber-text:#FBBF24;
+    --green-bg:#1F3A24; --green-text:#4ADE80; --green-dot:#4ADE80;
+    --amber-dot:#FBBF24; --red-dot:#F87171;
   }
   html,body{ background:var(--bg-page); color:var(--text); font-family:'Inter',sans-serif; min-height:100%; }
-  .field{ border:1px solid var(--border); border-radius:8px; padding:10px 12px; font-size:14px; width:100%; outline:none; }
-  .field:focus{ border-color:var(--blue); box-shadow:0 0 0 2px var(--blue-tint); }
+  .field{ background:var(--bg-page); border:1px solid var(--border); border-radius:999px; padding:14px 20px; font-size:15px; width:100%; outline:none; color:var(--text); }
+  .field::placeholder{ color:var(--muted); }
+  .field:focus{ border-color:#6B6E72; }
   .pw-field-wrap{ position:relative; }
-  .pw-field-wrap .field{ padding-right:38px; }
-  .pw-toggle{ position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; padding:4px; cursor:pointer; color:var(--muted); display:flex; }
+  .pw-field-wrap .field{ padding-right:46px; }
+  .pw-toggle{ position:absolute; right:14px; top:50%; transform:translateY(-50%); background:none; border:none; padding:4px; cursor:pointer; color:var(--muted); display:flex; }
   .pw-toggle:hover{ color:var(--text); }
+  .btn-primary{ width:100%; border-radius:999px; padding:13px; font-size:15px; font-weight:600; background:var(--blue); color:#fff; border:none; cursor:pointer; transition:background .15s; }
+  .btn-primary:hover{ background:var(--blue-dark); }
+  .btn-primary:disabled{ opacity:0.5; cursor:not-allowed; }
 </style>
 </head>
-<body class="min-h-screen flex items-center justify-center py-10">
-  <div class="w-full max-w-sm bg-white border border-[var(--border)] rounded-xl shadow-sm p-8">
-    <div class="mb-6 text-center">
-      <div class="text-lg font-bold" style="color:var(--blue-dark)">Dynamic Human Capital</div>
-      <div class="text-sm text-[var(--muted)] mt-1">Create your account</div>
+<body class="min-h-screen flex items-center justify-center px-4 py-10">
+  <div class="w-full max-w-sm">
+    <div class="mb-8 text-center">
+      <div class="text-2xl font-bold text-white">Dynamic Human Capital</div>
+      <div class="text-sm mt-1" style="color:var(--muted)">Create your account</div>
     </div>
-    <form id="signupForm" class="space-y-4" novalidate>
-      <div>
-        <label class="block text-xs font-medium text-[var(--muted)] mb-1">Full Name</label>
-        <input id="name" type="text" required class="field" />
+
+    <form id="signupForm" class="space-y-3" novalidate>
+      <input id="name" type="text" required class="field" placeholder="Full name" />
+      <input id="email" type="email" required autocomplete="username" class="field" placeholder="Work email (you@dhc.com.sg)" />
+      <div class="pw-field-wrap">
+        <input id="password" type="password" required autocomplete="new-password" class="field" placeholder="Password" />
+        <button type="button" class="pw-toggle" data-target="password" aria-label="Show password">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
       </div>
-      <div>
-        <label class="block text-xs font-medium text-[var(--muted)] mb-1">Work Email</label>
-        <input id="email" type="email" required autocomplete="username" class="field" placeholder="you@dhc.com.sg" />
-      </div>
-      <div>
-        <label class="block text-xs font-medium text-[var(--muted)] mb-1">Password</label>
-        <div class="pw-field-wrap">
-          <input id="password" type="password" required autocomplete="new-password" class="field" />
-          <button type="button" class="pw-toggle" data-target="password" aria-label="Show password">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-          </button>
-        </div>
-      </div>
-      <div id="reqStatus" class="hidden text-xs font-medium flex items-center gap-1.5">
+      <div id="reqStatus" class="hidden text-xs font-medium flex items-center gap-1.5 px-2">
         <span id="reqIcon"></span><span id="reqText"></span>
       </div>
-      <div>
-        <div class="h-1.5 rounded-full bg-[#EEF0F2] overflow-hidden">
+      <div class="px-2">
+        <div class="h-1.5 rounded-full overflow-hidden" style="background:var(--border)">
           <div id="strengthBar" class="h-full rounded-full transition-all" style="width:0%;background:var(--red-dot)"></div>
         </div>
         <div id="strengthLabel" class="text-xs font-medium mt-1" style="color:var(--muted)">&nbsp;</div>
       </div>
-      <ul id="criteria" class="text-xs space-y-1">
+      <ul id="criteria" class="text-xs space-y-1 px-2">
         <li data-rule="length" class="flex items-center gap-1.5" style="color:var(--muted)">○ At least 8 characters</li>
         <li data-rule="lower" class="flex items-center gap-1.5" style="color:var(--muted)">○ One lowercase letter</li>
         <li data-rule="upper" class="flex items-center gap-1.5" style="color:var(--muted)">○ One uppercase letter</li>
         <li data-rule="number" class="flex items-center gap-1.5" style="color:var(--muted)">○ One number</li>
         <li data-rule="special" class="flex items-center gap-1.5" style="color:var(--muted)">○ One special character (e.g. ! @ # $ %)</li>
       </ul>
-      <div>
-        <label class="block text-xs font-medium text-[var(--muted)] mb-1">Confirm Password</label>
-        <div class="pw-field-wrap">
-          <input id="confirm" type="password" required autocomplete="new-password" class="field" />
-          <button type="button" class="pw-toggle" data-target="confirm" aria-label="Show password">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-          </button>
-        </div>
+      <div class="pw-field-wrap">
+        <input id="confirm" type="password" required autocomplete="new-password" class="field" placeholder="Confirm password" />
+        <button type="button" class="pw-toggle" data-target="confirm" aria-label="Show password">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
       </div>
-      <div id="matchStatus" class="hidden text-xs font-medium flex items-center gap-1.5">
+      <div id="matchStatus" class="hidden text-xs font-medium flex items-center gap-1.5 px-2">
         <span id="matchIcon"></span><span id="matchText"></span>
       </div>
-      <div id="signupError" class="hidden text-sm rounded-lg px-3 py-2" style="background:var(--red-bg);color:var(--red-text)"></div>
-      <button type="submit" id="signupBtn" disabled class="w-full rounded-lg py-2.5 text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed" style="background:var(--blue)">
+      <div id="signupError" class="hidden text-sm rounded-lg px-3 py-2 text-center" style="background:var(--red-bg);color:var(--red-text)"></div>
+      <button type="submit" id="signupBtn" disabled class="btn-primary mt-1">
         Create Account
       </button>
     </form>
-    <div class="text-center text-sm text-[var(--muted)] mt-5">
-      Already have an account? <a href="/login.html" class="font-medium" style="color:var(--blue)">Sign in</a>
+
+    <div class="text-center text-sm mt-6" style="color:var(--muted)">
+      Already have an account? <a href="/login.html" class="font-medium" style="color:var(--blue)">Log in</a>
     </div>
   </div>
 

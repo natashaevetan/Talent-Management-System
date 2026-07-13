@@ -9,56 +9,59 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg-page:#F4F5F7;
-    --bg-panel:#FFFFFF;
-    --border:#E1E4E8;
-    --text:#1B2733;
-    --muted:#6B7480;
+    --bg-page:#18191A;
+    --text:#E4E6EB;
+    --muted:#8A8D91;
+    --border:#3E4042;
     --blue:#3E7CC2;
     --blue-dark:#2C64A8;
-    --blue-tint:#EAF3FC;
-    --red-bg:#FBE7E7; --red-text:#B3261E;
+    --red-bg:#3A1F1F; --red-text:#F87171;
   }
   html,body{ background:var(--bg-page); color:var(--text); font-family:'Inter',sans-serif; height:100%; }
-  .field{ border:1px solid var(--border); border-radius:8px; padding:10px 12px; font-size:14px; width:100%; outline:none; }
-  .field:focus{ border-color:var(--blue); box-shadow:0 0 0 2px var(--blue-tint); }
+  .field{ background:var(--bg-page); border:1px solid var(--border); border-radius:999px; padding:14px 20px; font-size:15px; width:100%; outline:none; color:var(--text); }
+  .field::placeholder{ color:var(--muted); }
+  .field:focus{ border-color:#6B6E72; }
   .pw-field-wrap{ position:relative; }
-  .pw-field-wrap .field{ padding-right:38px; }
-  .pw-toggle{ position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; padding:4px; cursor:pointer; color:var(--muted); display:flex; }
+  .pw-field-wrap .field{ padding-right:46px; }
+  .pw-toggle{ position:absolute; right:14px; top:50%; transform:translateY(-50%); background:none; border:none; padding:4px; cursor:pointer; color:var(--muted); display:flex; }
   .pw-toggle:hover{ color:var(--text); }
+  .btn-primary{ width:100%; border-radius:999px; padding:13px; font-size:15px; font-weight:600; background:var(--blue); color:#fff; border:none; cursor:pointer; transition:background .15s; }
+  .btn-primary:hover{ background:var(--blue-dark); }
+  .btn-primary:disabled{ opacity:0.5; cursor:not-allowed; }
+  .btn-outline{ display:block; width:100%; text-align:center; border-radius:999px; padding:12px; font-size:15px; font-weight:600; background:transparent; color:var(--blue); border:1px solid var(--blue); text-decoration:none; transition:background .15s; }
+  .btn-outline:hover{ background:rgba(62,124,194,0.12); }
 </style>
 </head>
-<body class="min-h-screen flex items-center justify-center">
-  <div class="w-full max-w-sm bg-white border border-[var(--border)] rounded-xl shadow-sm p-8">
-    <div class="mb-6 text-center">
-      <div class="text-lg font-bold" style="color:var(--blue-dark)">Dynamic Human Capital</div>
-      <div class="text-sm text-[var(--muted)] mt-1">Talent Management System</div>
+<body class="min-h-screen flex items-center justify-center px-4">
+  <div class="w-full max-w-sm">
+    <div class="mb-8 text-center">
+      <div class="text-2xl font-bold text-white">Dynamic Human Capital</div>
+      <div class="text-sm mt-1" style="color:var(--muted)">Talent Management System</div>
     </div>
-    <form id="loginForm" class="space-y-4">
-      <div>
-        <label class="block text-xs font-medium text-[var(--muted)] mb-1">Email</label>
-        <input id="email" type="email" required autocomplete="username" class="field" />
+
+    <form id="loginForm" class="space-y-3">
+      <input id="email" type="email" required autocomplete="username" class="field" placeholder="Work email" />
+      <div class="pw-field-wrap">
+        <input id="password" type="password" required autocomplete="current-password" class="field" placeholder="Password" />
+        <button type="button" class="pw-toggle" data-target="password" aria-label="Show password">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
       </div>
-      <div>
-        <label class="block text-xs font-medium text-[var(--muted)] mb-1">Password</label>
-        <div class="pw-field-wrap">
-          <input id="password" type="password" required autocomplete="current-password" class="field" />
-          <button type="button" class="pw-toggle" data-target="password" aria-label="Show password">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-          </button>
-        </div>
-      </div>
-      <div class="text-right -mt-2">
-        <a href="/forgot-password.html" class="text-xs" style="color:var(--blue)">Forgot password?</a>
-      </div>
-      <div id="loginError" class="hidden text-sm rounded-lg px-3 py-2" style="background:var(--red-bg);color:var(--red-text)"></div>
-      <button type="submit" id="loginBtn" class="w-full rounded-lg py-2.5 text-sm font-semibold text-white" style="background:var(--blue)">
-        Sign in
+      <div id="loginError" class="hidden text-sm rounded-lg px-3 py-2 text-center" style="background:var(--red-bg);color:var(--red-text)"></div>
+      <button type="submit" id="loginBtn" class="btn-primary mt-1">
+        Log in
       </button>
     </form>
-    <div class="text-center text-sm text-[var(--muted)] mt-5">
-      New here? <a href="/signup.html" class="font-medium" style="color:var(--blue)">Create an account</a>
+
+    <div class="text-center mt-5">
+      <a href="/forgot-password.html" class="text-sm hover:underline" style="color:var(--muted)">Forgot password?</a>
     </div>
+
+    <div class="my-6 border-t" style="border-color:var(--border)"></div>
+
+    <a href="/signup.html" class="btn-outline">Create new account</a>
+
+    <div class="text-center mt-8 text-xs" style="color:var(--muted)">Dynamic Human Capital</div>
   </div>
 
 <script>
@@ -80,7 +83,7 @@
     const btn = document.getElementById('loginBtn');
     errorEl.classList.add('hidden');
     btn.disabled = true;
-    btn.textContent = "Signing in…";
+    btn.textContent = "Logging in…";
     try{
       const res = await fetch('/api/auth/login', {
         method: 'POST',
@@ -93,7 +96,7 @@
       });
       if(!res.ok){
         const body = await res.json().catch(()=>({}));
-        throw new Error(body.error || 'Sign in failed');
+        throw new Error(body.error || 'Log in failed');
       }
       window.location.href = '/';
     }catch(err){
@@ -101,7 +104,7 @@
       errorEl.classList.remove('hidden');
     }finally{
       btn.disabled = false;
-      btn.textContent = "Sign in";
+      btn.textContent = "Log in";
     }
   });
 </script>
