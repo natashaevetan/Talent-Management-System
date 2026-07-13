@@ -5,4 +5,4 @@ dist/
 *.db-journal
 .DS_Store
 
-# Railway auto-deploy pipeline test — safe to remove
+# Railway auto-deploy pipeline test — confirmed working, safe to remove
