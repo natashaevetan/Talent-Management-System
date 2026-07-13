@@ -20,22 +20,22 @@
   "dependencies": {
     "@prisma/client": "^6.19.3",
     "@quixo3/prisma-session-store": "^3.1.21",
+    "@types/bcrypt": "^6.0.0",
+    "@types/express": "^5.0.6",
+    "@types/express-session": "^1.19.0",
+    "@types/node": "^26.1.1",
     "bcrypt": "^6.0.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-rate-limit": "^8.5.2",
     "express-session": "^1.19.0",
     "helmet": "^8.2.0",
-    "prisma": "^6.19.3"
+    "prisma": "^6.19.3",
+    "typescript": "^6.0.3"
   },
   "devDependencies": {
     "@railway/cli": "^5.24.0",
-    "@types/bcrypt": "^6.0.0",
-    "@types/express": "^5.0.6",
-    "@types/express-session": "^1.19.0",
-    "@types/node": "^26.1.1",
-    "tsx": "^4.23.0",
-    "typescript": "^6.0.3"
+    "tsx": "^4.23.0"
   },
   "allowScripts": {
     "bcrypt@6.0.0": true,
