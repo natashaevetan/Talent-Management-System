@@ -619,6 +619,10 @@
           <h1 class="text-2xl font-bold text-[var(--text)]">Talents</h1>
         </div>
         <div class="flex items-center gap-2">
+          <button id="openImportModalBtn" class="btn-secondary rounded-md px-3.5 py-1.5 text-sm font-medium flex items-center gap-1.5">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Import from Excel
+          </button>
           <button id="openExportModalBtn" class="btn-secondary rounded-md px-3.5 py-1.5 text-sm font-medium flex items-center gap-1.5">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Export to Excel
@@ -1876,6 +1880,38 @@
   <div class="flex justify-end gap-2 px-6 py-4 border-t border-[var(--border)]">
     <button type="button" id="cancelExportModal" class="btn-secondary rounded-md px-4 py-2 text-sm font-medium">Cancel</button>
     <button type="button" id="confirmExportBtn" class="btn-primary rounded-md px-4 py-2 text-sm font-medium">Export</button>
+  </div>
+</div>
+
+<!-- Import from Excel Modal -->
+<div id="importModalOverlay" class="overlay"></div>
+<div id="importModal" class="modal-card">
+  <div class="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
+    <div>
+      <h2 class="text-lg font-bold">Import from Excel</h2>
+      <p class="text-xs text-[var(--muted)]">Upload a client tracking sheet (.xlsx or .csv) to bulk-add or update talents.</p>
+    </div>
+    <button id="closeImportModal" class="icon-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+  </div>
+  <div class="px-6 py-5 space-y-5">
+    <div>
+      <label class="field-label">Client</label>
+      <input id="importClientName" type="text" list="importClientList" placeholder="e.g. Fujitsu Asia" class="filter-input" />
+      <datalist id="importClientList"></datalist>
+      <p class="text-xs text-[var(--muted)] mt-1">All talents in this sheet will be assigned to this client. If the client doesn't exist yet, it'll be created.</p>
+    </div>
+    <div>
+      <label class="field-label">File</label>
+      <input id="importFileInput" type="file" accept=".xlsx,.xls,.csv" class="filter-input" />
+      <p class="text-xs text-[var(--muted)] mt-1">Expected columns: Name, Position, Basic Salary, Total Employment Cost, Monthly Charge Rate, FIN No., Type of Pass, Entity, Work Pass Issuance/Expiry Date, Contract Start/End Date, Hiring Name, Verifier Email Address, Dept, Quotation Number, PO number, Owner.</p>
+    </div>
+    <div id="importPreview" class="hidden">
+      <div class="rounded-lg border border-[var(--border)] p-3 text-sm space-y-1" id="importPreviewSummary"></div>
+    </div>
+  </div>
+  <div class="flex justify-end gap-2 px-6 py-4 border-t border-[var(--border)]">
+    <button type="button" id="cancelImportModal" class="btn-secondary rounded-md px-4 py-2 text-sm font-medium">Cancel</button>
+    <button type="button" id="confirmImportBtn" disabled class="btn-primary rounded-md px-4 py-2 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed">Import</button>
   </div>
 </div>
 

@@ -94,6 +94,7 @@ const api = {
     sendWorkPassNotice: async (id) => normalizeTalentDates(await request(`/talents/${id}/workpass/notice`, { method: "POST" })),
     sendInsuranceNotice: async (id) => normalizeTalentDates(await request(`/talents/${id}/insurance/notice`, { method: "POST" })),
     remove: (id) => request(`/talents/${id}`, { method: "DELETE" }),
+    import: (client, rows) => request("/talents/import", { method: "POST", body: JSON.stringify({ client, rows }) }),
   },
   dashboard: {
     home: () => request("/dashboard/home"),

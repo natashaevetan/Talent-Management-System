@@ -120,6 +120,159 @@ talentsRouter.post(
   })
 );
 
+interface ImportRow {
+  name?: string;
+  position?: string;
+  basicSalary?: number;
+  totalEmploymentCost?: number;
+  monthlyChargeRate?: number;
+  finNo?: string;
+  typeOfPass?: string;
+  entity?: string;
+  workPassIssuanceDate?: string;
+  workPassExpiryDate?: string;
+  contractStartDate?: string;
+  contractEndDate?: string;
+  hiringName?: string;
+  verifierEmail?: string;
+  dept?: string;
+  quotationNumber?: string;
+  poNumber?: string;
+  owner?: string;
+}
+
+talentsRouter.post(
+  "/import",
+  asyncHandler(async (req, res) => {
+    const { client: clientName, rows } = req.body as { client?: string; rows?: ImportRow[] };
+    if (!clientName?.trim()) return void res.status(400).json({ error: "client is required" });
+    if (!Array.isArray(rows) || rows.length === 0) return void res.status(400).json({ error: "rows must be a non-empty array" });
+
+    const client = await upsertClientByName(clientName.trim());
+    let created = 0;
+    let updated = 0;
+    const skipped: { row: number; name: string; reason: string }[] = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      const name = (r.name ?? "").toString().trim();
+      const hasCoreData = !!(r.position || r.basicSalary || r.finNo || r.contractStartDate);
+      if (!name || !hasCoreData) {
+        skipped.push({ row: i + 1, name: name || "(no name)", reason: "insufficient data" });
+        continue;
+      }
+
+      const nric = (r.finNo ?? "").toString().trim();
+      const existing =
+        (nric ? await prisma.talent.findFirst({ where: { nric, active: true } }) : null) ??
+        (await prisma.talent.findFirst({ where: { name, clientId: client.id, active: true } }));
+
+      const parts = name.split(/\s+/);
+      const lastName = parts.length > 1 ? parts[parts.length - 1] : parts[0];
+      const firstName = parts.length > 1 ? parts.slice(0, -1).join(" ") : parts[0];
+
+      const entity = r.entity ? await upsertLegalEntityByName(String(r.entity).trim()) : null;
+      const caseOwner = r.owner ? await upsertRecruiterByName(String(r.owner).trim()) : null;
+
+      const today = new Date();
+      const contractStart = r.contractStartDate ? new Date(r.contractStartDate) : today;
+      const contractEnd = r.contractEndDate ? new Date(r.contractEndDate) : new Date(today.getFullYear() + 1, today.getMonth(), today.getDate());
+
+      const salary = Number(r.basicSalary) || 0;
+      const cpf = Math.round(salary * 0.17);
+      const totalCost = r.totalEmploymentCost != null ? Number(r.totalEmploymentCost) : null;
+      const otherStatutoryCosts = totalCost !== null ? Math.max(0, Math.round(totalCost - salary - cpf)) : 0;
+      const chargeRate = Number(r.monthlyChargeRate) || 0;
+
+      const passTypeRaw = r.typeOfPass ? String(r.typeOfPass).trim() : "";
+      const hasWorkPass = !!passTypeRaw && passTypeRaw.toLowerCase() !== "not applicable";
+
+      const poQuotationParts: string[] = [];
+      if (r.quotationNumber) poQuotationParts.push(`Quotation: ${r.quotationNumber}`);
+      if (r.poNumber) poQuotationParts.push(`PO: ${r.poNumber}`);
+      const poQuotationNotes = poQuotationParts.length ? poQuotationParts.join("\n") : undefined;
+
+      const contractContactData: Record<string, unknown> = {};
+      if (r.hiringName) contractContactData.clientContactName = String(r.hiringName).trim();
+      if (r.verifierEmail) contractContactData.clientContactEmail = String(r.verifierEmail).trim();
+      if (r.dept) contractContactData.clientDepartment = String(r.dept).trim();
+      if (poQuotationNotes) contractContactData.poQuotationNotes = poQuotationNotes;
+
+      if (existing) {
+        const talentData: Record<string, unknown> = { clientId: client.id };
+        if (r.position) talentData.jobTitle = String(r.position).trim();
+        if (nric) talentData.nric = nric;
+        if (entity) talentData.entityId = entity.id;
+        if (caseOwner) talentData.caseOwnerId = caseOwner.id;
+        await prisma.talent.update({ where: { id: existing.id }, data: talentData });
+
+        const contractUpdate: Record<string, unknown> = { ...contractContactData };
+        if (r.contractStartDate) contractUpdate.contractStart = contractStart;
+        if (r.contractEndDate) contractUpdate.contractEnd = contractEnd;
+        if (Object.keys(contractUpdate).length) {
+          await prisma.contract.update({ where: { talentId: existing.id }, data: contractUpdate });
+        }
+        if (salary) await prisma.payroll.update({ where: { talentId: existing.id }, data: { salary, cpf, otherStatutoryCosts } });
+        if (chargeRate) await prisma.talentBilling.update({ where: { talentId: existing.id }, data: { chargeRate } });
+
+        if (hasWorkPass) {
+          const wpData: Record<string, unknown> = { workPassType: passTypeRaw };
+          if (r.workPassIssuanceDate) wpData.passIssueDate = new Date(r.workPassIssuanceDate);
+          if (r.workPassExpiryDate) wpData.passExpiry = new Date(r.workPassExpiryDate);
+          const existingWorkPass = await prisma.workPass.findUnique({ where: { talentId: existing.id } });
+          if (existingWorkPass) {
+            await prisma.workPass.update({ where: { talentId: existing.id }, data: wpData });
+          } else {
+            await prisma.workPass.create({
+              data: {
+                talentId: existing.id,
+                passStatus: "Issued",
+                passExpiry: r.workPassExpiryDate ? new Date(r.workPassExpiryDate) : contractEnd,
+                ...wpData,
+              },
+            });
+          }
+        }
+        updated++;
+      } else {
+        const talent = await prisma.talent.create({
+          data: {
+            firstName,
+            lastName,
+            name,
+            nric: nric || "",
+            jobTitle: r.position ? String(r.position).trim() : null,
+            skillset: toJson([]),
+            clientId: client.id,
+            entityId: entity?.id ?? null,
+            caseOwnerId: caseOwner?.id ?? null,
+            contract: { create: { contractStart, contractEnd, contractStatus: "Signed", ...contractContactData } },
+            insurance: { create: { policyType: "Not Required" } },
+            payroll: { create: { salary, cpf, otherStatutoryCosts } },
+            leaveTimesheet: { create: {} },
+            offboarding: { create: { lastWorkingDay: contractEnd } },
+          },
+        });
+        if (hasWorkPass) {
+          await prisma.workPass.create({
+            data: {
+              talentId: talent.id,
+              workPassType: passTypeRaw,
+              passIssueDate: r.workPassIssuanceDate ? new Date(r.workPassIssuanceDate) : null,
+              passExpiry: r.workPassExpiryDate ? new Date(r.workPassExpiryDate) : contractEnd,
+              passStatus: "Issued",
+            },
+          });
+        }
+        await prisma.talentBilling.create({ data: { talentId: talent.id, chargeRate, billingType: "Monthly", invoiceStatus: "Pending" } });
+        created++;
+      }
+    }
+
+    res.json({ created, updated, skipped });
+  })
+);
+
 async function reserialize(id: number) {
   const talent = await prisma.talent.findUniqueOrThrow({ where: { id }, include: talentInclude });
   return serializeTalent(talent);
@@ -178,7 +331,7 @@ talentsRouter.patch(
     const current = await prisma.contract.findUniqueOrThrow({ where: { talentId: id } });
 
     const data: Record<string, unknown> = {};
-    for (const key of ["contractStatus", "noticePeriod", "contractUpload", "signedContractUpload", "contractRenewalStatus", "contractLifecycleStatus", "remarks", "renewalRemarks", "sowStatus", "poStatus"]) {
+    for (const key of ["contractStatus", "noticePeriod", "contractUpload", "signedContractUpload", "contractRenewalStatus", "contractLifecycleStatus", "remarks", "renewalRemarks", "sowStatus", "poStatus", "clientContactName", "clientContactEmail", "clientDepartment", "poQuotationNotes"]) {
       if (key in b) data[key] = b[key];
     }
     for (const key of ["contractStart", "contractEnd"]) {

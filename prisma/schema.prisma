@@ -150,6 +150,13 @@ model Contract {
   datesUpdatedSeq         Int     @default(0)
   contractNoticeSent      Boolean @default(false)
 
+  // Client-side point of contact and PO/quotation references, populated by bulk import
+  // from client tracking sheets. Shown on the Talent Profile only, not the Talents list.
+  clientContactName  String?
+  clientContactEmail String?
+  clientDepartment   String?
+  poQuotationNotes   String?
+
   updatedAt DateTime @updatedAt
 }
 

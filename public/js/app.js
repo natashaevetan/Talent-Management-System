@@ -1066,6 +1066,175 @@ document.getElementById('confirmExportBtn').addEventListener('click', ()=>{
   }
 });
 
+/* ---------- Import from Excel Modal ----------
+   Reads a client tracking-sheet (.xlsx/.csv) matching the format the ops team already uses
+   (see Fujitsu Asia Tracking Sheet.xlsx): Name, Position, Basic Salary, Total Employment Cost,
+   Monthly Charge Rate, FIN No., Type of Pass, Entity, Work Pass Issuance/Expiry Date,
+   Contract Start/End Date, Hiring Name, Verifier Email Address, Dept, Quotation Number,
+   PO number, Owner. Column order is matched by header name (not position), so extra/reordered
+   columns don't break it. Actual create-vs-update + dedup logic lives server-side
+   (POST /api/talents/import) since it needs to check against the live database. */
+const IMPORT_HEADER_MAP = {
+  name: 'name',
+  position: 'position',
+  'basic salary': 'basicSalary',
+  'total employment cost': 'totalEmploymentCost',
+  'monthly charge rate': 'monthlyChargeRate',
+  'fin no.': 'finNo',
+  'type of pass': 'typeOfPass',
+  entity: 'entity',
+  'work pass issuance date': 'workPassIssuanceDate',
+  'work pass expiry date': 'workPassExpiryDate',
+  'contract start date': 'contractStartDate',
+  'contract end date': 'contractEndDate',
+  'hiring name': 'hiringName',
+  'verifier email address': 'verifierEmail',
+  dept: 'dept',
+  'quotation number': 'quotationNumber',
+  'po number': 'poNumber',
+  owner: 'owner',
+};
+const IMPORT_DATE_KEYS = new Set(['workPassIssuanceDate', 'workPassExpiryDate', 'contractStartDate', 'contractEndDate']);
+const IMPORT_NUMBER_KEYS = new Set(['basicSalary', 'totalEmploymentCost', 'monthlyChargeRate']);
+
+function parseImportWorkbook(workbook){
+  const sheetName = workbook.SheetNames[0];
+  const ws = workbook.Sheets[sheetName];
+  const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+  if(!raw.length) throw new Error("The file appears to be empty.");
+
+  const headerRow = raw[0].map(h => (h ?? '').toString().trim().toLowerCase());
+  const colIndexByKey = {};
+  Object.entries(IMPORT_HEADER_MAP).forEach(([header, key])=>{
+    const idx = headerRow.indexOf(header);
+    if(idx >= 0 && !(key in colIndexByKey)) colIndexByKey[key] = idx;
+  });
+  if(colIndexByKey.name === undefined){
+    throw new Error(`Couldn't find a "Name" column. Found headers: ${raw[0].filter(Boolean).join(', ')}`);
+  }
+
+  const rows = [];
+  const skippedPreview = [];
+  for(let i = 1; i < raw.length; i++){
+    const r = raw[i];
+    if(!r) continue;
+    const get = (key) => colIndexByKey[key] !== undefined ? r[colIndexByKey[key]] : null;
+    const name = (get('name') ?? '').toString().trim();
+    if(!name) continue;
+
+    const hasCoreData = !!(get('position') || get('basicSalary') || get('finNo') || get('contractStartDate'));
+    if(!hasCoreData){
+      skippedPreview.push({ row: i + 1, name, reason: "insufficient data" });
+      continue;
+    }
+
+    const row = { name };
+    Object.values(IMPORT_HEADER_MAP).forEach(key=>{
+      if(key === 'name') return;
+      const val = get(key);
+      if(val === null || val === undefined || val === '') return;
+      if(IMPORT_DATE_KEYS.has(key)) row[key] = (val instanceof Date ? val : new Date(val)).toISOString();
+      else if(IMPORT_NUMBER_KEYS.has(key)) row[key] = Number(val);
+      else row[key] = String(val).trim();
+    });
+    rows.push(row);
+  }
+  return { rows, skippedPreview };
+}
+
+function readImportFile(file){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Couldn't read the file."));
+    const isCsv = /\.csv$/i.test(file.name);
+    reader.onload = () => {
+      try{
+        const workbook = isCsv
+          ? XLSX.read(reader.result, { type: 'string', cellDates: true })
+          : XLSX.read(reader.result, { type: 'array', cellDates: true });
+        resolve(parseImportWorkbook(workbook));
+      }catch(err){
+        reject(err);
+      }
+    };
+    if(isCsv) reader.readAsText(file);
+    else reader.readAsArrayBuffer(file);
+  });
+}
+
+const importModalOverlay = document.getElementById('importModalOverlay');
+const importModal = document.getElementById('importModal');
+let importParsedRows = null;
+
+function openImportModal(){
+  document.getElementById('importClientName').value = '';
+  document.getElementById('importFileInput').value = '';
+  document.getElementById('importPreview').classList.add('hidden');
+  document.getElementById('confirmImportBtn').disabled = true;
+  importParsedRows = null;
+  document.getElementById('importClientList').innerHTML = [...new Set(talents.map(t=>t.client).filter(Boolean))]
+    .sort().map(name=>`<option value="${name}"></option>`).join('');
+  importModalOverlay.classList.add('open');
+  importModal.classList.add('open');
+}
+function closeImportModalFn(){
+  importModalOverlay.classList.remove('open');
+  importModal.classList.remove('open');
+}
+document.getElementById('openImportModalBtn').addEventListener('click', openImportModal);
+document.getElementById('closeImportModal').addEventListener('click', closeImportModalFn);
+document.getElementById('cancelImportModal').addEventListener('click', closeImportModalFn);
+importModalOverlay.addEventListener('click', closeImportModalFn);
+
+function updateImportConfirmEnabled(){
+  const hasClient = document.getElementById('importClientName').value.trim().length > 0;
+  document.getElementById('confirmImportBtn').disabled = !(hasClient && importParsedRows && importParsedRows.length > 0);
+}
+document.getElementById('importClientName').addEventListener('input', updateImportConfirmEnabled);
+
+document.getElementById('importFileInput').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  const previewEl = document.getElementById('importPreview');
+  const summaryEl = document.getElementById('importPreviewSummary');
+  if(!file){ previewEl.classList.add('hidden'); importParsedRows = null; updateImportConfirmEnabled(); return; }
+  try{
+    const { rows, skippedPreview } = await readImportFile(file);
+    importParsedRows = rows;
+    const skippedHtml = skippedPreview.length
+      ? `<div class="text-[var(--muted)] mt-1">Skipped (insufficient data): ${skippedPreview.map(s=>`row ${s.row} "${s.name}"`).join(', ')}</div>`
+      : '';
+    summaryEl.innerHTML = `<div><span class="font-semibold">${rows.length}</span> row${rows.length===1?'':'s'} ready to import.</div>${skippedHtml}`;
+    previewEl.classList.remove('hidden');
+  }catch(err){
+    importParsedRows = null;
+    summaryEl.innerHTML = `<div style="color:var(--red-text)">${err.message}</div>`;
+    previewEl.classList.remove('hidden');
+  }
+  updateImportConfirmEnabled();
+});
+
+document.getElementById('confirmImportBtn').addEventListener('click', async ()=>{
+  const client = document.getElementById('importClientName').value.trim();
+  if(!client || !importParsedRows || importParsedRows.length === 0) return;
+  const btn = document.getElementById('confirmImportBtn');
+  btn.disabled = true;
+  btn.textContent = "Importing…";
+  try{
+    const result = await api.talents.import(client, importParsedRows);
+    closeImportModalFn();
+    const skippedNote = result.skipped.length ? `, ${result.skipped.length} skipped` : '';
+    showToast(`Import complete — ${result.created} created, ${result.updated} updated${skippedNote}.`, checkIcon);
+    talents = await api.talents.list();
+    renderStats();
+    renderTable();
+  }catch(err){
+    showToast(err.message || "Import failed — please try again.");
+  }finally{
+    btn.disabled = false;
+    btn.textContent = "Import";
+  }
+});
+
 /* ---------- Add Talent Modal ---------- */
 const modalOverlay = document.getElementById('modalOverlay');
 const addModal = document.getElementById('addModal');
@@ -1549,6 +1718,10 @@ function renderTalentProfile(c){
     dlRow("Remarks", c.remarks),
     dlRow("SOW Required", c.sowRequired),
     dlRow("PO Required", c.poRequired),
+    dlRow("Client Contact Name", c.clientContactName || "—"),
+    dlRow("Client Contact Email", c.clientContactEmail || "—"),
+    dlRow("Client Department", c.clientDepartment || "—"),
+    dlRow("Quotation / PO Notes", c.poQuotationNotes ? `<span class="font-normal text-xs whitespace-pre-line">${c.poQuotationNotes}</span>` : "—"),
   ].join('');
 
   /* ----- Insurance tab ----- */

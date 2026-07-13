@@ -81,6 +81,10 @@ export function serializeTalent(t: TalentWithRelations) {
     datesUpdatedSeq: t.contract?.datesUpdatedSeq ?? 0,
     contractNoticeSent: t.contract?.contractNoticeSent ?? false,
     contractDaysLeft: contractDaysLeftValue,
+    clientContactName: t.contract?.clientContactName ?? null,
+    clientContactEmail: t.contract?.clientContactEmail ?? null,
+    clientDepartment: t.contract?.clientDepartment ?? null,
+    poQuotationNotes: t.contract?.poQuotationNotes ?? null,
 
     // Work Pass
     workPassType: t.workPass?.workPassType ?? null,
