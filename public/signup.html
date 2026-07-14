@@ -31,6 +31,7 @@
   .btn-primary{ width:100%; border-radius:999px; padding:13px; font-size:15px; font-weight:600; background:var(--blue); color:#fff; border:none; cursor:pointer; transition:background .15s; }
   .btn-primary:hover{ background:var(--blue-dark); }
   .btn-primary:disabled{ opacity:0.5; cursor:not-allowed; }
+  .code-field{ text-align:center; letter-spacing:8px; font-size:20px; font-weight:600; }
 </style>
 </head>
 <body class="min-h-screen flex items-center justify-center px-4 py-10">
@@ -80,7 +81,22 @@
       </button>
     </form>
 
-    <div class="text-center text-sm mt-6" style="color:var(--muted)">
+    <form id="codeForm" class="space-y-3 hidden" novalidate>
+      <div class="text-center text-sm mb-2" style="color:var(--muted)">
+        We sent a 6-digit code to <span id="codeSentToEmail" class="font-medium" style="color:var(--text)"></span>. Enter it below — it expires in 10 minutes.
+      </div>
+      <input id="code" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" class="field code-field" placeholder="000000" />
+      <div id="codeError" class="hidden text-sm rounded-lg px-3 py-2 text-center" style="background:var(--red-bg);color:var(--red-text)"></div>
+      <div id="codeSuccess" class="hidden text-sm rounded-lg px-3 py-2 text-center" style="background:var(--green-bg);color:var(--green-text)"></div>
+      <button type="submit" id="verifyCodeBtn" class="btn-primary mt-1">
+        Verify and continue
+      </button>
+      <div class="text-center mt-2">
+        <button type="button" id="resendCodeBtn" class="text-sm hover:underline" style="color:var(--muted);background:none;border:none;cursor:pointer;">Resend code</button>
+      </div>
+    </form>
+
+    <div id="signupFooter" class="text-center text-sm mt-6" style="color:var(--muted)">
       Already have an account? <a href="/login.html" class="font-medium" style="color:var(--blue)">Log in</a>
     </div>
   </div>
@@ -176,6 +192,14 @@
   document.getElementById('name').addEventListener('input', updateChecklist);
   document.getElementById('email').addEventListener('input', updateChecklist);
 
+  function showCodeStep(email){
+    document.getElementById('signupForm').classList.add('hidden');
+    document.getElementById('signupFooter').classList.add('hidden');
+    document.getElementById('codeForm').classList.remove('hidden');
+    document.getElementById('codeSentToEmail').textContent = email;
+    document.getElementById('code').focus();
+  }
+
   document.getElementById('signupForm').addEventListener('submit', async (e)=>{
     e.preventDefault();
     const errorEl = document.getElementById('signupError');
@@ -194,16 +218,71 @@
           password: document.getElementById('password').value,
         }),
       });
+      const body = await res.json().catch(()=>({}));
       if(!res.ok){
-        const body = await res.json().catch(()=>({}));
         throw new Error(body.error || 'Sign up failed');
       }
-      window.location.href = '/';
+      if(body.requiresTwoFactor){
+        showCodeStep(body.email);
+      } else {
+        window.location.href = '/';
+      }
     }catch(err){
       errorEl.textContent = err.message;
       errorEl.classList.remove('hidden');
       btn.disabled = false;
       btn.textContent = "Create Account";
+    }
+  });
+
+  document.getElementById('codeForm').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const errorEl = document.getElementById('codeError');
+    const btn = document.getElementById('verifyCodeBtn');
+    errorEl.classList.add('hidden');
+    btn.disabled = true;
+    btn.textContent = "Verifying…";
+    try{
+      const res = await fetch('/api/auth/verify-code', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: document.getElementById('code').value.trim() }),
+      });
+      if(!res.ok){
+        const body = await res.json().catch(()=>({}));
+        throw new Error(body.error || 'Verification failed');
+      }
+      window.location.href = '/';
+    }catch(err){
+      errorEl.textContent = err.message;
+      errorEl.classList.remove('hidden');
+    }finally{
+      btn.disabled = false;
+      btn.textContent = "Verify and continue";
+    }
+  });
+
+  document.getElementById('resendCodeBtn').addEventListener('click', async ()=>{
+    const errorEl = document.getElementById('codeError');
+    const successEl = document.getElementById('codeSuccess');
+    const btn = document.getElementById('resendCodeBtn');
+    errorEl.classList.add('hidden');
+    successEl.classList.add('hidden');
+    btn.disabled = true;
+    try{
+      const res = await fetch('/api/auth/resend-code', { method: 'POST', credentials: 'same-origin' });
+      if(!res.ok){
+        const body = await res.json().catch(()=>({}));
+        throw new Error(body.error || 'Could not resend code');
+      }
+      successEl.textContent = "A new code has been sent.";
+      successEl.classList.remove('hidden');
+    }catch(err){
+      errorEl.textContent = err.message;
+      errorEl.classList.remove('hidden');
+    }finally{
+      btn.disabled = false;
     }
   });
 </script>

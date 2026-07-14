@@ -4,6 +4,9 @@ declare module "express-session" {
   interface SessionData {
     userId?: string;
     userRole?: string;
+    // Set after password verification, before the 2FA code is confirmed. Deliberately a
+    // separate field from userId so requireAuth never treats a pending login as authenticated.
+    pendingUserId?: string;
   }
 }
 

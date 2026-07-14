@@ -16,11 +16,13 @@
     --blue:#3E7CC2;
     --blue-dark:#2C64A8;
     --red-bg:#3A1F1F; --red-text:#F87171;
+    --green-bg:#1F3A24; --green-text:#4ADE80;
   }
   html,body{ background:var(--bg-page); color:var(--text); font-family:'Inter',sans-serif; height:100%; }
   .field{ background:var(--bg-page); border:1px solid var(--border); border-radius:999px; padding:14px 20px; font-size:15px; width:100%; outline:none; color:var(--text); }
   .field::placeholder{ color:var(--muted); }
   .field:focus{ border-color:#6B6E72; }
+  .code-field{ text-align:center; letter-spacing:8px; font-size:20px; font-weight:600; }
   .pw-field-wrap{ position:relative; }
   .pw-field-wrap .field{ padding-right:46px; }
   .pw-toggle{ position:absolute; right:14px; top:50%; transform:translateY(-50%); background:none; border:none; padding:4px; cursor:pointer; color:var(--muted); display:flex; }
@@ -53,13 +55,30 @@
       </button>
     </form>
 
-    <div class="text-center mt-5">
-      <a href="/forgot-password.html" class="text-sm hover:underline" style="color:var(--muted)">Forgot password?</a>
+    <form id="codeForm" class="space-y-3 hidden" novalidate>
+      <div class="text-center text-sm mb-2" style="color:var(--muted)">
+        We sent a 6-digit code to <span id="codeSentToEmail" class="font-medium" style="color:var(--text)"></span>. Enter it below — it expires in 10 minutes.
+      </div>
+      <input id="code" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" class="field code-field" placeholder="000000" />
+      <div id="codeError" class="hidden text-sm rounded-lg px-3 py-2 text-center" style="background:var(--red-bg);color:var(--red-text)"></div>
+      <div id="codeSuccess" class="hidden text-sm rounded-lg px-3 py-2 text-center" style="background:var(--green-bg);color:var(--green-text)"></div>
+      <button type="submit" id="verifyCodeBtn" class="btn-primary mt-1">
+        Verify and log in
+      </button>
+      <div class="text-center mt-2">
+        <button type="button" id="resendCodeBtn" class="text-sm hover:underline" style="color:var(--muted);background:none;border:none;cursor:pointer;">Resend code</button>
+      </div>
+    </form>
+
+    <div id="loginFooter">
+      <div class="text-center mt-5">
+        <a href="/forgot-password.html" class="text-sm hover:underline" style="color:var(--muted)">Forgot password?</a>
+      </div>
+
+      <div class="my-6 border-t" style="border-color:var(--border)"></div>
+
+      <a href="/signup.html" class="btn-outline">Create new account</a>
     </div>
-
-    <div class="my-6 border-t" style="border-color:var(--border)"></div>
-
-    <a href="/signup.html" class="btn-outline">Create new account</a>
 
     <div class="text-center mt-8 text-xs" style="color:var(--muted)">Dynamic Human Capital</div>
   </div>
@@ -76,6 +95,14 @@
       btn.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
     });
   });
+
+  function showCodeStep(email){
+    document.getElementById('loginForm').classList.add('hidden');
+    document.getElementById('loginFooter').classList.add('hidden');
+    document.getElementById('codeForm').classList.remove('hidden');
+    document.getElementById('codeSentToEmail').textContent = email;
+    document.getElementById('code').focus();
+  }
 
   document.getElementById('loginForm').addEventListener('submit', async (e)=>{
     e.preventDefault();
@@ -94,9 +121,41 @@
           password: document.getElementById('password').value,
         }),
       });
+      const body = await res.json().catch(()=>({}));
+      if(!res.ok){
+        throw new Error(body.error || 'Log in failed');
+      }
+      if(body.requiresTwoFactor){
+        showCodeStep(body.email);
+      } else {
+        window.location.href = '/';
+      }
+    }catch(err){
+      errorEl.textContent = err.message;
+      errorEl.classList.remove('hidden');
+    }finally{
+      btn.disabled = false;
+      btn.textContent = "Log in";
+    }
+  });
+
+  document.getElementById('codeForm').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const errorEl = document.getElementById('codeError');
+    const btn = document.getElementById('verifyCodeBtn');
+    errorEl.classList.add('hidden');
+    btn.disabled = true;
+    btn.textContent = "Verifying…";
+    try{
+      const res = await fetch('/api/auth/verify-code', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: document.getElementById('code').value.trim() }),
+      });
       if(!res.ok){
         const body = await res.json().catch(()=>({}));
-        throw new Error(body.error || 'Log in failed');
+        throw new Error(body.error || 'Verification failed');
       }
       window.location.href = '/';
     }catch(err){
@@ -104,7 +163,30 @@
       errorEl.classList.remove('hidden');
     }finally{
       btn.disabled = false;
-      btn.textContent = "Log in";
+      btn.textContent = "Verify and log in";
+    }
+  });
+
+  document.getElementById('resendCodeBtn').addEventListener('click', async ()=>{
+    const errorEl = document.getElementById('codeError');
+    const successEl = document.getElementById('codeSuccess');
+    const btn = document.getElementById('resendCodeBtn');
+    errorEl.classList.add('hidden');
+    successEl.classList.add('hidden');
+    btn.disabled = true;
+    try{
+      const res = await fetch('/api/auth/resend-code', { method: 'POST', credentials: 'same-origin' });
+      if(!res.ok){
+        const body = await res.json().catch(()=>({}));
+        throw new Error(body.error || 'Could not resend code');
+      }
+      successEl.textContent = "A new code has been sent.";
+      successEl.classList.remove('hidden');
+    }catch(err){
+      errorEl.textContent = err.message;
+      errorEl.classList.remove('hidden');
+    }finally{
+      btn.disabled = false;
     }
   });
 </script>

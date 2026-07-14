@@ -72,6 +72,8 @@ async function request(path, options = {}) {
 const api = {
   auth: {
     login: (email, password) => request("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
+    verifyCode: (code) => request("/auth/verify-code", { method: "POST", body: JSON.stringify({ code }) }),
+    resendCode: () => request("/auth/resend-code", { method: "POST" }),
     logout: () => request("/auth/logout", { method: "POST" }),
     me: () => request("/auth/me"),
     changePassword: (currentPassword, newPassword) => request("/auth/change-password", { method: "POST", body: JSON.stringify({ currentPassword, newPassword }) }),

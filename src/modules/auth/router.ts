@@ -35,6 +35,45 @@ const forgotPasswordLimiter = rateLimit({
   message: { error: "Too many password reset requests. Try again later." },
 });
 
+// Strict: a 6-digit code is only ~1M possibilities, so this must be tight even though the
+// code itself also expires (10 min) and locks out after MAX_CODE_ATTEMPTS wrong guesses.
+const verifyCodeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many attempts. Try again in a few minutes." },
+});
+
+const resendCodeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many code requests. Try again in a few minutes." },
+});
+
+const TWO_FACTOR_CODE_TTL_MS = 10 * 60 * 1000;
+const MAX_CODE_ATTEMPTS = 5;
+
+async function issueTwoFactorCode(userId: string, email: string, name: string) {
+  const code = crypto.randomInt(100000, 1000000).toString();
+  const twoFactorCodeHash = await bcrypt.hash(code, 10);
+  const twoFactorCodeExpiresAt = new Date(Date.now() + TWO_FACTOR_CODE_TTL_MS);
+  await prisma.user.update({
+    where: { id: userId },
+    data: { twoFactorCodeHash, twoFactorCodeExpiresAt, twoFactorAttempts: 0 },
+  });
+  await sendEmail(
+    email,
+    "Your login code — Dynamic Human Capital Talent Management",
+    `<p>Hi ${name},</p>
+     <p>Your one-time login code is:</p>
+     <p style="font-size:28px;font-weight:700;letter-spacing:4px;">${code}</p>
+     <p>This code expires in 10 minutes. If you didn't try to log in, you can ignore this email.</p>`
+  );
+}
+
 // More lenient than loginLimiter since this only fires while already authenticated
 // (used for the live "is this really my current password" indicator while typing).
 const verifyPasswordLimiter = rateLimit({
@@ -67,12 +106,78 @@ authRouter.post(
       return;
     }
 
+    await issueTwoFactorCode(user.id, user.email, user.name);
+    req.session.regenerate((err) => {
+      if (err) throw err;
+      req.session.pendingUserId = user.id;
+      res.json({ requiresTwoFactor: true, email: user.email });
+    });
+  })
+);
+
+authRouter.post(
+  "/verify-code",
+  verifyCodeLimiter,
+  asyncHandler(async (req, res) => {
+    const { code } = req.body as { code?: string };
+    if (!req.session.pendingUserId) {
+      res.status(400).json({ error: "No pending login. Please log in again." });
+      return;
+    }
+    if (!code) {
+      res.status(400).json({ error: "code is required" });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.session.pendingUserId } });
+    if (!user || !user.active || !user.twoFactorCodeHash || !user.twoFactorCodeExpiresAt) {
+      res.status(400).json({ error: "No pending login. Please log in again." });
+      return;
+    }
+    if (user.twoFactorCodeExpiresAt.getTime() < Date.now()) {
+      res.status(400).json({ error: "This code has expired. Request a new one." });
+      return;
+    }
+    if (user.twoFactorAttempts >= MAX_CODE_ATTEMPTS) {
+      res.status(400).json({ error: "Too many incorrect attempts. Request a new code." });
+      return;
+    }
+
+    const valid = await bcrypt.compare(code, user.twoFactorCodeHash);
+    if (!valid) {
+      await prisma.user.update({ where: { id: user.id }, data: { twoFactorAttempts: { increment: 1 } } });
+      res.status(401).json({ error: "Incorrect code." });
+      return;
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { twoFactorCodeHash: null, twoFactorCodeExpiresAt: null, twoFactorAttempts: 0 },
+    });
     req.session.regenerate((err) => {
       if (err) throw err;
       req.session.userId = user.id;
       req.session.userRole = user.role;
       res.json({ id: user.id, email: user.email, name: user.name, role: user.role });
     });
+  })
+);
+
+authRouter.post(
+  "/resend-code",
+  resendCodeLimiter,
+  asyncHandler(async (req, res) => {
+    if (!req.session.pendingUserId) {
+      res.status(400).json({ error: "No pending login. Please log in again." });
+      return;
+    }
+    const user = await prisma.user.findUnique({ where: { id: req.session.pendingUserId } });
+    if (!user || !user.active) {
+      res.status(400).json({ error: "No pending login. Please log in again." });
+      return;
+    }
+    await issueTwoFactorCode(user.id, user.email, user.name);
+    res.json({ ok: true });
   })
 );
 
@@ -182,11 +287,11 @@ authRouter.post(
       },
     });
 
+    await issueTwoFactorCode(user.id, user.email, user.name);
     req.session.regenerate((err) => {
       if (err) throw err;
-      req.session.userId = user.id;
-      req.session.userRole = user.role;
-      res.status(201).json({ id: user.id, email: user.email, name: user.name, role: user.role });
+      req.session.pendingUserId = user.id;
+      res.status(201).json({ requiresTwoFactor: true, email: user.email });
     });
   })
 );

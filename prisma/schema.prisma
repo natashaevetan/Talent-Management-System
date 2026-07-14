@@ -26,6 +26,11 @@ model User {
   resetToken          String?   @unique
   resetTokenExpiresAt DateTime?
   createdAt           DateTime  @default(now())
+
+  // Mandatory email-based 2FA: a short-lived code required on every login/signup.
+  twoFactorCodeHash      String?
+  twoFactorCodeExpiresAt DateTime?
+  twoFactorAttempts      Int       @default(0)
 }
 
 enum Role {
