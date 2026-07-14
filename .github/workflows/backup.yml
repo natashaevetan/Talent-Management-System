@@ -1,0 +1,56 @@
+name: Database Backup
+
+on:
+  schedule:
+    # 18:00 UTC = 02:00 SGT
+    - cron: "0 18 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install postgresql-client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client gnupg
+
+      - name: Dump and encrypt database
+        env:
+          DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::BACKUP_DATABASE_URL secret is not set. Add it under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          if [ -z "$PASSPHRASE" ]; then
+            echo "::error::BACKUP_ENCRYPTION_PASSPHRASE secret is not set. Add it under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          mkdir -p backups
+          STAMP=$(date -u +%Y-%m-%d_%H%M%S)
+          pg_dump "$DATABASE_URL" --format=custom --file="backups/backup_${STAMP}.dump"
+          gpg --batch --yes --passphrase "$PASSPHRASE" --symmetric --cipher-algo AES256 \
+            -o "backups/backup_${STAMP}.dump.gpg" "backups/backup_${STAMP}.dump"
+          rm "backups/backup_${STAMP}.dump"
+          echo "STAMP=${STAMP}" >> "$GITHUB_ENV"
+
+      - name: Upload encrypted backup as release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: backup-${{ env.STAMP }}
+          name: "DB Backup ${{ env.STAMP }} (encrypted)"
+          body: "Automated daily database backup, encrypted with AES256. Decrypt locally with `gpg --decrypt` using the passphrase stored outside GitHub."
+          files: backups/backup_${{ env.STAMP }}.dump.gpg
+          prerelease: true
+
+      - name: Prune backups older than 30 days
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          CUTOFF=$(date -u -d "30 days ago" +%s)
+          gh release list --limit 200 --json tagName,createdAt | \
+            jq -r --argjson cutoff "$CUTOFF" '.[] | select((.tagName | startswith("backup-")) and ((.createdAt | fromdateiso8601) < $cutoff)) | .tagName' | \
+            while read -r tag; do
+              echo "Deleting old backup release: $tag"
+              gh release delete "$tag" --yes --cleanup-tag || true
+            done
