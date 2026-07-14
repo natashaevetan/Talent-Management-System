@@ -34,8 +34,8 @@ jobs:
           # Run pg_dump inside the official postgres:18 image so the client version always
           # matches Railway's server version exactly, instead of relying on whatever version
           # Ubuntu's apt repo happens to ship.
-          docker run --rm -v "$PWD/backups:/backups" -e PGDUMP_URL="$DATABASE_URL" postgres:18 \
-            pg_dump "$PGDUMP_URL" --format=custom --file="/backups/backup_${STAMP}.dump"
+          docker run --rm -v "$PWD/backups:/backups" postgres:18 \
+            pg_dump "$DATABASE_URL" --format=custom --file="/backups/backup_${STAMP}.dump"
           gpg --batch --yes --passphrase "$PASSPHRASE" --symmetric --cipher-algo AES256 \
             -o "backups/backup_${STAMP}.dump.gpg" "backups/backup_${STAMP}.dump"
           rm "backups/backup_${STAMP}.dump"
