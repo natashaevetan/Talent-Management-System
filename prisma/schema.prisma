@@ -33,6 +33,14 @@ enum Role {
   STANDARD
 }
 
+// Single-row settings table controlling what Standard-role users can see.
+// Admin-managed via /api/admin/settings.
+model PermissionSettings {
+  id                        String   @id @default("singleton")
+  standardCanViewFinancials Boolean  @default(false)
+  updatedAt                 DateTime @updatedAt
+}
+
 // ---------- Lookups (support inline "add new X" quick-add pattern) ----------
 
 model Client {

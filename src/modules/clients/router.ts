@@ -3,20 +3,27 @@ import { prisma } from "../../lib/prisma";
 import { asyncHandler } from "../../middleware/errorHandler";
 import { requireAuth } from "../../middleware/requireAuth";
 import { serializeClient, clientInclude } from "./serialize";
+import { getPermissionSettings, canViewFinancials } from "../../lib/permissions";
 
 export const clientsRouter = Router();
 clientsRouter.use(requireAuth);
 
-async function reserializeByName(name: string) {
+async function canViewFinancialsForRequest(req: import("express").Request): Promise<boolean> {
+  const settings = await getPermissionSettings();
+  return canViewFinancials(req.session.userRole, settings);
+}
+
+async function reserializeByName(name: string, req: import("express").Request) {
   const client = await prisma.client.findUniqueOrThrow({ where: { name }, include: clientInclude });
-  return serializeClient(client);
+  return serializeClient(client, await canViewFinancialsForRequest(req));
 }
 
 clientsRouter.get(
   "/",
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (req, res) => {
     const clients = await prisma.client.findMany({ include: clientInclude, orderBy: { name: "asc" } });
-    res.json(clients.map(serializeClient));
+    const canViewFin = await canViewFinancialsForRequest(req);
+    res.json(clients.map((c) => serializeClient(c, canViewFin)));
   })
 );
 
@@ -51,7 +58,7 @@ clientsRouter.post(
         billing: { create: {} },
       },
     });
-    res.status(201).json(await reserializeByName(b.name.trim()));
+    res.status(201).json(await reserializeByName(b.name.trim(), req));
   })
 );
 
@@ -67,7 +74,7 @@ clientsRouter.patch(
     if ("status" in b) data.status = b.status === "Inactive" ? "INACTIVE" : "ACTIVE";
 
     await prisma.client.update({ where: { name }, data });
-    res.json(await reserializeByName(name));
+    res.json(await reserializeByName(name, req));
   })
 );
 
@@ -90,6 +97,6 @@ clientsRouter.patch(
 
     const client = await prisma.client.findUniqueOrThrow({ where: { name } });
     await prisma.clientBilling.update({ where: { clientId: client.id }, data });
-    res.json(await reserializeByName(name));
+    res.json(await reserializeByName(name, req));
   })
 );

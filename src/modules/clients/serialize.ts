@@ -6,7 +6,7 @@ const clientWithRelations = Prisma.validator<Prisma.ClientDefaultArgs>()({
 export type ClientWithRelations = Prisma.ClientGetPayload<typeof clientWithRelations>;
 export const clientInclude = clientWithRelations.include;
 
-export function serializeClient(c: ClientWithRelations) {
+export function serializeClient(c: ClientWithRelations, canViewFinancials = true) {
   return {
     id: c.id,
     name: c.name,
@@ -19,7 +19,7 @@ export function serializeClient(c: ClientWithRelations) {
     billing: c.billing
       ? {
           billingType: c.billing.billingType,
-          chargeRate: c.billing.chargeRate,
+          chargeRate: canViewFinancials ? c.billing.chargeRate : null,
           currency: c.billing.currency,
           billableStart: c.billing.billableStart,
           billableEnd: c.billing.billableEnd,
@@ -27,12 +27,12 @@ export function serializeClient(c: ClientWithRelations) {
           sowStatus: c.billing.sowStatus,
           poRequired: c.billing.poRequired ? "Yes" : "No",
           poStatus: c.billing.poStatus,
-          invoiceNumber: c.billing.invoiceNumber,
-          invoiceDate: c.billing.invoiceDate,
-          invoiceAmount: c.billing.invoiceAmount,
-          invoiceStatus: c.billing.invoiceStatus,
-          clientPaymentDueDate: c.billing.clientPaymentDueDate,
-          clientPaymentReceivedDate: c.billing.clientPaymentReceivedDate,
+          invoiceNumber: canViewFinancials ? c.billing.invoiceNumber : null,
+          invoiceDate: canViewFinancials ? c.billing.invoiceDate : null,
+          invoiceAmount: canViewFinancials ? c.billing.invoiceAmount : null,
+          invoiceStatus: canViewFinancials ? c.billing.invoiceStatus : null,
+          clientPaymentDueDate: canViewFinancials ? c.billing.clientPaymentDueDate : null,
+          clientPaymentReceivedDate: canViewFinancials ? c.billing.clientPaymentReceivedDate : null,
         }
       : null,
   };

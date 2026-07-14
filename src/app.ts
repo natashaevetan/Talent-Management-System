@@ -13,6 +13,7 @@ import { dashboardRouter } from "./modules/dashboard/router";
 import { clientsRouter } from "./modules/clients/router";
 import { sowRouter } from "./modules/sow/router";
 import { poRouter } from "./modules/po/router";
+import { adminRouter } from "./modules/admin/router";
 
 export function createApp() {
   const app = express();
@@ -67,6 +68,7 @@ export function createApp() {
   app.use("/api/clients", clientsRouter);
   app.use("/api/sow", sowRouter);
   app.use("/api/po", poRouter);
+  app.use("/api/admin", adminRouter);
 
   app.use(express.static(path.join(__dirname, "..", "public")));
 

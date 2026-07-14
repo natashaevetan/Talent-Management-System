@@ -5,13 +5,14 @@ import { requireAuth } from "../../middleware/requireAuth";
 import { daysLeft, totalEmployerCost, talentRevenue } from "../../lib/computed";
 import { RENEWAL_THRESHOLDS } from "../../config/businessRules";
 import { talentInclude } from "../talents/serialize";
+import { getPermissionSettings, canViewFinancials } from "../../lib/permissions";
 
 export const dashboardRouter = Router();
 dashboardRouter.use(requireAuth);
 
 dashboardRouter.get(
   "/home",
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (req, res) => {
     const today = new Date();
     const talents = await prisma.talent.findMany({ where: { active: true }, include: talentInclude });
 
@@ -46,6 +47,9 @@ dashboardRouter.get(
       prisma.leaveTimesheet.count({ where: { timesheetSubmitted: false } }),
     ]);
 
+    const settings = await getPermissionSettings();
+    const canViewFin = canViewFinancials(req.session.userRole, settings);
+
     res.json({
       totalActiveTalents: talents.length - pendingStart - expiredContracts,
       pendingStart,
@@ -57,9 +61,9 @@ dashboardRouter.get(
       pendingPo,
       pendingInvoices,
       pendingTimesheets,
-      monthlyRevenue,
-      monthlyCost,
-      monthlyGrossProfit: monthlyRevenue - monthlyCost,
+      monthlyRevenue: canViewFin ? monthlyRevenue : null,
+      monthlyCost: canViewFin ? monthlyCost : null,
+      monthlyGrossProfit: canViewFin ? monthlyRevenue - monthlyCost : null,
       // Trend vs prior period intentionally omitted — no fake history; real trend data
       // becomes available once monthly snapshots (Phase 5) have accumulated real history.
     });

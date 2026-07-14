@@ -24,16 +24,27 @@ function yn(value: boolean | null | undefined): "Yes" | "No" {
   return value ? "Yes" : "No";
 }
 
+const PAYROLL_FIELDS = [
+  "salary", "cpf", "skillsDevelopmentLevy", "wica", "medicalInsuranceCost",
+  "allowances", "claimsReimbursements", "overtime", "noPayLeaveDeduction", "otherStatutoryCosts",
+] as const;
+const BILLING_FIELDS = [
+  "chargeRate", "talentInvoiceNumber", "talentInvoiceDate", "talentInvoiceDueDate",
+  "talentInvoiceAmount", "invoiceStatus", "talentInvoicePaidDate",
+] as const;
+
 /** Flattens the normalized Talent + child records into the single wide object shape
  * the mockup frontend's render functions expect (talent.contractStart, talent.workPassType, etc).
+ * `canViewFinancials` gates payroll/billing figures — set false to null them out for a
+ * Standard-role viewer without financials access (server-side redaction, not just UI hiding).
  */
-export function serializeTalent(t: TalentWithRelations) {
+export function serializeTalent(t: TalentWithRelations, canViewFinancials = true) {
   const contractDaysLeftValue = t.contract ? daysLeft(t.contract.contractEnd) : null;
   const passDaysLeftValue = t.workPass ? daysLeft(t.workPass.passExpiry) : null;
   const policyDaysLeftValue = t.insurance ? daysLeft(t.insurance.policyExpiry) : null;
   const alert = (passDaysLeftValue !== null && passDaysLeftValue <= 30) || (contractDaysLeftValue !== null && contractDaysLeftValue <= 30);
 
-  return {
+  const result = {
     id: t.id,
     firstName: t.firstName,
     lastName: t.lastName,
@@ -181,6 +192,13 @@ export function serializeTalent(t: TalentWithRelations) {
     contractExpiringSoon: isExpiringSoon(contractDaysLeftValue),
     passExpiringSoon: isExpiringSoon(passDaysLeftValue),
   };
+
+  if (!canViewFinancials) {
+    for (const key of PAYROLL_FIELDS) (result as Record<string, unknown>)[key] = null;
+    for (const key of BILLING_FIELDS) (result as Record<string, unknown>)[key] = null;
+  }
+
+  return result;
 }
 
 export type SerializedTalent = ReturnType<typeof serializeTalent>;

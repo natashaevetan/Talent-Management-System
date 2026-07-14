@@ -127,4 +127,11 @@ const api = {
     sendNotice: async (id) => normalizeRecordDates(await request(`/po/${id}/notice`, { method: "POST" })),
     setTalents: async (id, talentIds) => normalizeRecordDates(await request(`/po/${id}/talents`, { method: "PUT", body: JSON.stringify({ talentIds }) })),
   },
+  admin: {
+    getSettings: () => request("/admin/settings"),
+    updateSettings: (payload) => request("/admin/settings", { method: "PATCH", body: JSON.stringify(payload) }),
+    listUsers: () => request("/admin/users"),
+    updateUserRole: (id, role) => request(`/admin/users/${id}/role`, { method: "PATCH", body: JSON.stringify({ role }) }),
+    updateUserActive: (id, active) => request(`/admin/users/${id}/active`, { method: "PATCH", body: JSON.stringify({ active }) }),
+  },
 };

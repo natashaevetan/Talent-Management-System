@@ -212,12 +212,16 @@ function randomPayrollFields(c){
 }
 
 function computeTotalPayrollCost(c){
+  // salary is null when the server redacted financial fields for a Standard user without
+  // financials access — never fabricate a partial total from just the admin fee in that case.
+  if(c.salary === null || c.salary === undefined) return null;
   return c.salary + (c.cpf||0) + c.skillsDevelopmentLevy + c.wica + c.medicalInsuranceCost
     + c.allowances + c.claimsReimbursements + c.overtime - c.noPayLeaveDeduction + c.otherStatutoryCosts
     + getWorkPassAdminFee(c);
 }
 
 function computeTalentRevenue(c){
+  if(c.chargeRate === null || c.chargeRate === undefined) return null;
   return c.billingType === "Daily" ? c.chargeRate * 22 : c.chargeRate;
 }
 
@@ -231,6 +235,7 @@ function seededVariance(seed, monthOffset){
 function computeMargin(c){
   const monthlyBillable = computeTalentRevenue(c);
   const totalCost = computeTotalPayrollCost(c);
+  if(monthlyBillable === null || totalCost === null) return null;
   return monthlyBillable > 0 ? ((monthlyBillable - totalCost) / monthlyBillable * 100) : 0;
 }
 
@@ -392,8 +397,9 @@ function xlDate(d){ return d ? fmtDate(d) : ''; }
 function dash(v){ return (v===null || v===undefined || (typeof v==='string' && v.trim()==='')) ? '-' : v; }
 
 function fmtDate(d){ return d ? d.toLocaleDateString('en-SG', { day:'2-digit', month:'short', year:'numeric' }) : '-'; }
-function fmtMoney(n){ return "S$ " + n.toLocaleString('en-SG'); }
+function fmtMoney(n){ return (n===null || n===undefined) ? '-' : "S$ " + n.toLocaleString('en-SG'); }
 function fmtMoneyCompact(n){
+  if(n===null || n===undefined) return '-';
   const abs = Math.abs(n);
   if(abs >= 1000000) return "S$ " + (n/1000000).toFixed(2) + "M";
   if(abs >= 1000) return "S$ " + (n/1000).toFixed(0) + "K";
@@ -654,7 +660,16 @@ const checkIcon = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" s
 
 /* ---------- Sidebar router ---------- */
 const sidebarLinks = document.querySelectorAll('.sidebar-link[data-view]');
+let canViewFinancials = true; // recomputed at bootstrap from role + admin settings
+const FINANCIAL_VIEWS = new Set(['finance','billing','analytics']);
 function switchView(view){
+  if(FINANCIAL_VIEWS.has(view) && !canViewFinancials){
+    showToast("You don't have access to financial data. Ask an Admin if you need this.");
+    view = 'talents';
+  }
+  if(view==='admin' && !(currentUser && currentUser.role==='ADMIN')){
+    view = 'talents';
+  }
   document.querySelectorAll('.view-panel').forEach(el=>el.classList.add('hidden'));
   document.getElementById('view-'+view).classList.remove('hidden');
   sidebarLinks.forEach(l=>l.classList.toggle('active', l.dataset.view===view));
@@ -671,6 +686,13 @@ function switchView(view){
   if(view==='clients') renderClients();
   if(view==='sowpo') renderSowPoTracking();
   if(view==='renewals') renderRenewalCentre();
+  if(view==='admin') renderAdminSettings();
+}
+function applyPermissionUI(){
+  sidebarLinks.forEach(l=>{
+    if(FINANCIAL_VIEWS.has(l.dataset.view)) l.classList.toggle('hidden', !canViewFinancials);
+  });
+  document.getElementById('adminSettingsNavLink').classList.toggle('hidden', !(currentUser && currentUser.role==='ADMIN'));
 }
 sidebarLinks.forEach(l=>l.addEventListener('click', e=>{ e.preventDefault(); switchView(l.dataset.view); }));
 document.getElementById('headerTitleLink').addEventListener('click', ()=> switchView('home'));
@@ -1014,8 +1036,8 @@ const exportColumns = [
   {key:'contractStart', label:'Start Date', get:c=>fmtDate(c.contractStart)},
   {key:'contractEnd', label:'End Date', get:c=>fmtDate(c.contractEnd)},
   {key:'contractStatus', label:'Contract Status', get:c=>c.contractStatus},
-  {key:'monthlyCost', label:'Monthly Cost (SGD)', get:c=>Math.round(computeTotalPayrollCost(c))},
-  {key:'margin', label:'Margin (%)', get:c=>Number(computeMargin(c).toFixed(1))},
+  {key:'monthlyCost', label:'Monthly Cost (SGD)', get:c=>{ const v = computeTotalPayrollCost(c); return v===null ? '-' : Math.round(v); }},
+  {key:'margin', label:'Margin (%)', get:c=>{ const v = computeMargin(c); return v===null ? '-' : Number(v.toFixed(1)); }},
   {key:'owner', label:'Owner', get:c=>c.caseOwner},
 ];
 
@@ -1507,10 +1529,16 @@ const profileTabsList = [
   {id:'offboarding', label:'Offboarding'},
 ];
 let activeProfileTab = 'personal';
+const FINANCIAL_PROFILE_TABS = new Set(['payroll','billing']);
+
+function visibleProfileTabs(){
+  return canViewFinancials ? profileTabsList : profileTabsList.filter(t=>!FINANCIAL_PROFILE_TABS.has(t.id));
+}
 
 function renderProfileTabBar(){
+  if(FINANCIAL_PROFILE_TABS.has(activeProfileTab) && !canViewFinancials) activeProfileTab = 'personal';
   const bar = document.getElementById('profileTabBar');
-  bar.innerHTML = profileTabsList.map(t=>`
+  bar.innerHTML = visibleProfileTabs().map(t=>`
     <button type="button" class="profile-tab-btn px-4 py-3 text-sm font-medium ${activeProfileTab===t.id?'active':''}" data-tab="${t.id}">${t.label}</button>
   `).join('');
   bar.querySelectorAll('.profile-tab-btn').forEach(btn=>{
@@ -6459,6 +6487,76 @@ offboardEditForm.addEventListener('submit', async e=>{
   }
 });
 
+/* ---------- Admin Settings ---------- */
+async function renderAdminSettings(){
+  try{
+    const [settings, users] = await Promise.all([api.admin.getSettings(), api.admin.listUsers()]);
+    document.getElementById('adminFinancialsToggle').checked = settings.standardCanViewFinancials;
+    document.getElementById('adminUsersTableBody').innerHTML = users.map(u=>`
+      <tr class="border-b border-[var(--border)]" data-user-id="${u.id}">
+        <td class="px-3 py-2">${u.name}</td>
+        <td class="px-3 py-2 text-[var(--muted)]">${u.email}</td>
+        <td class="px-3 py-2">
+          <select class="select-basic admin-role-select text-sm" ${u.id===currentUser.id?'disabled':''}>
+            <option value="STANDARD" ${u.role==='STANDARD'?'selected':''}>Standard</option>
+            <option value="ADMIN" ${u.role==='ADMIN'?'selected':''}>Admin</option>
+          </select>
+        </td>
+        <td class="px-3 py-2">
+          <span class="pill" style="${u.active?'background:var(--green-bg);color:var(--green-text)':'background:var(--red-bg);color:var(--red-text)'}">${u.active?'Active':'Deactivated'}</span>
+        </td>
+        <td class="px-3 py-2">
+          <button type="button" class="link text-sm admin-toggle-active-btn" ${u.id===currentUser.id?'disabled':''}>${u.active?'Deactivate':'Reactivate'}</button>
+        </td>
+      </tr>
+    `).join('');
+
+    document.querySelectorAll('.admin-role-select').forEach(sel=>{
+      sel.addEventListener('change', async (e)=>{
+        const id = e.target.closest('tr').dataset.userId;
+        try{
+          await api.admin.updateUserRole(id, e.target.value);
+          showToast("Role updated", checkIcon);
+          if(id === currentUser.id){ currentUser.role = e.target.value; applyPermissionUI(); }
+        }catch(err){
+          showToast(`Failed to update role: ${err.message}`);
+          renderAdminSettings();
+        }
+      });
+    });
+    document.querySelectorAll('.admin-toggle-active-btn').forEach(btn=>{
+      btn.addEventListener('click', async (e)=>{
+        const tr = e.target.closest('tr');
+        const id = tr.dataset.userId;
+        const currentlyActive = btn.textContent.trim() === 'Deactivate';
+        try{
+          await api.admin.updateUserActive(id, !currentlyActive);
+          showToast(currentlyActive ? "User deactivated" : "User reactivated", checkIcon);
+          renderAdminSettings();
+        }catch(err){
+          showToast(`Failed to update account: ${err.message}`);
+        }
+      });
+    });
+  }catch(err){
+    showToast(`Failed to load admin settings: ${err.message}`);
+  }
+}
+document.getElementById('adminFinancialsToggle').addEventListener('change', async (e)=>{
+  const checked = e.target.checked;
+  try{
+    await api.admin.updateSettings({ standardCanViewFinancials: checked });
+    showToast("Settings saved", checkIcon);
+    if(currentUser && currentUser.role !== 'ADMIN'){
+      canViewFinancials = checked;
+      applyPermissionUI();
+    }
+  }catch(err){
+    e.target.checked = !checked;
+    showToast(`Failed to save: ${err.message}`);
+  }
+});
+
 /* ---------- Init ---------- */
 async function bootstrap(){
   try{
@@ -6470,13 +6568,16 @@ async function bootstrap(){
     const initial = (me.name || me.email || '?')[0].toUpperCase();
     document.getElementById('profileBtn').textContent = initial;
 
-    const [talentsData, clientsData, dashboardData, sowData, poData] = await Promise.all([
+    const [talentsData, clientsData, dashboardData, sowData, poData, permissionSettings] = await Promise.all([
       api.talents.list(),
       api.clients.list(),
       api.dashboard.home(),
       api.sow.list(),
       api.po.list(),
+      api.admin.getSettings(),
     ]);
+    canViewFinancials = me.role === 'ADMIN' || permissionSettings.standardCanViewFinancials;
+    applyPermissionUI();
 
     talents = talentsData;
     talents.forEach(computeDerived);

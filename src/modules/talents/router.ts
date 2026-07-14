@@ -6,9 +6,15 @@ import { serializeTalent, talentInclude } from "./serialize";
 import { toJson } from "../../lib/json";
 import { upsertClientByName, upsertProjectTypeByName, upsertLegalEntityByName, upsertRecruiterByName } from "../../lib/lookups";
 import { nextRenewalSeq, isExpiryWithinRenewalWindow } from "../../lib/renewalRules";
+import { getPermissionSettings, canViewFinancials } from "../../lib/permissions";
 
 export const talentsRouter = Router();
 talentsRouter.use(requireAuth);
+
+async function canViewFinancialsForRequest(req: import("express").Request): Promise<boolean> {
+  const settings = await getPermissionSettings();
+  return canViewFinancials(req.session.userRole, settings);
+}
 
 talentsRouter.get(
   "/",
@@ -19,7 +25,8 @@ talentsRouter.get(
       include: talentInclude,
       orderBy: { id: "desc" },
     });
-    res.json(talents.map(serializeTalent));
+    const canViewFin = await canViewFinancialsForRequest(req);
+    res.json(talents.map((t) => serializeTalent(t, canViewFin)));
   })
 );
 
@@ -29,7 +36,7 @@ talentsRouter.get(
     const id = Number(req.params.id);
     const talent = await prisma.talent.findUnique({ where: { id }, include: talentInclude });
     if (!talent) return void res.status(404).json({ error: "Talent not found" });
-    res.json(serializeTalent(talent));
+    res.json(serializeTalent(talent, await canViewFinancialsForRequest(req)));
   })
 );
 
@@ -116,7 +123,7 @@ talentsRouter.post(
     });
 
     const full = await prisma.talent.findUniqueOrThrow({ where: { id: talent.id }, include: talentInclude });
-    res.status(201).json(serializeTalent(full));
+    res.status(201).json(serializeTalent(full, await canViewFinancialsForRequest(req)));
   })
 );
 
@@ -273,9 +280,9 @@ talentsRouter.post(
   })
 );
 
-async function reserialize(id: number) {
+async function reserialize(id: number, req: import("express").Request) {
   const talent = await prisma.talent.findUniqueOrThrow({ where: { id }, include: talentInclude });
-  return serializeTalent(talent);
+  return serializeTalent(talent, await canViewFinancialsForRequest(req));
 }
 
 talentsRouter.patch(
@@ -307,7 +314,7 @@ talentsRouter.patch(
     if ("caseOwner" in b && typeof b.caseOwner === "string") data.caseOwnerId = (await upsertRecruiterByName(b.caseOwner)).id;
 
     await prisma.talent.update({ where: { id }, data });
-    res.json(await reserialize(id));
+    res.json(await reserialize(id, req));
   })
 );
 
@@ -378,7 +385,7 @@ talentsRouter.patch(
 
     await prisma.contract.update({ where: { talentId: id }, data });
     await writeRenewalEvent("contract", String(id), req.session.userId, events);
-    res.json(await reserialize(id));
+    res.json(await reserialize(id, req));
   })
 );
 
@@ -437,7 +444,7 @@ talentsRouter.patch(
 
     await prisma.workPass.update({ where: { talentId: id }, data });
     await writeRenewalEvent("workpass", String(id), req.session.userId, events);
-    res.json(await reserialize(id));
+    res.json(await reserialize(id, req));
   })
 );
 
@@ -492,7 +499,7 @@ talentsRouter.patch(
 
     await prisma.insurancePolicy.update({ where: { talentId: id }, data });
     await writeRenewalEvent("insurance", String(id), req.session.userId, events);
-    res.json(await reserialize(id));
+    res.json(await reserialize(id, req));
   })
 );
 
@@ -505,7 +512,7 @@ talentsRouter.post(
     if (current.contractRenewalStatus === "Not Started") data.contractRenewalStatus = "In Progress";
     await prisma.contract.update({ where: { talentId: id }, data });
     await writeRenewalEvent("contract", String(id), req.session.userId, [{ eventType: "NOTICE_SENT" }]);
-    res.json(await reserialize(id));
+    res.json(await reserialize(id, req));
   })
 );
 
@@ -518,7 +525,7 @@ talentsRouter.post(
     if (current.renewalStatus === "Not Started") data.renewalStatus = "In Progress";
     await prisma.workPass.update({ where: { talentId: id }, data });
     await writeRenewalEvent("workpass", String(id), req.session.userId, [{ eventType: "NOTICE_SENT" }]);
-    res.json(await reserialize(id));
+    res.json(await reserialize(id, req));
   })
 );
 
@@ -528,7 +535,7 @@ talentsRouter.post(
     const id = Number(req.params.id);
     await prisma.insurancePolicy.update({ where: { talentId: id }, data: { insuranceNoticeSent: true } });
     await writeRenewalEvent("insurance", String(id), req.session.userId, [{ eventType: "NOTICE_SENT" }]);
-    res.json(await reserialize(id));
+    res.json(await reserialize(id, req));
   })
 );
 
@@ -542,7 +549,7 @@ talentsRouter.patch(
       if (key in b) data[key] = Number(b[key]);
     }
     await prisma.payroll.update({ where: { talentId: id }, data });
-    res.json(await reserialize(id));
+    res.json(await reserialize(id, req));
   })
 );
 
@@ -561,7 +568,7 @@ talentsRouter.patch(
       if (key in b) data[key] = b[key] ? new Date(b[key] as string) : null;
     }
     await prisma.talentBilling.update({ where: { talentId: id }, data });
-    res.json(await reserialize(id));
+    res.json(await reserialize(id, req));
   })
 );
 
@@ -583,7 +590,7 @@ talentsRouter.patch(
       if (key in b) data[key] = b[key] ? new Date(b[key] as string) : null;
     }
     await prisma.leaveTimesheet.update({ where: { talentId: id }, data });
-    res.json(await reserialize(id));
+    res.json(await reserialize(id, req));
   })
 );
 
@@ -601,7 +608,7 @@ talentsRouter.patch(
     }
     if ("offboardingChecklist" in b) data.offboardingChecklist = toJson(b.offboardingChecklist);
     await prisma.offboarding.update({ where: { talentId: id }, data });
-    res.json(await reserialize(id));
+    res.json(await reserialize(id, req));
   })
 );
 
@@ -613,7 +620,7 @@ talentsRouter.post(
     lastWorkingDay.setDate(lastWorkingDay.getDate() + 14);
     await prisma.contract.update({ where: { talentId: id }, data: { contractEnd: lastWorkingDay, contractLifecycleStatus: "Notice Period" } });
     await prisma.offboarding.update({ where: { talentId: id }, data: { lastWorkingDay } });
-    res.json(await reserialize(id));
+    res.json(await reserialize(id, req));
   })
 );
 

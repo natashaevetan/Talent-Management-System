@@ -327,6 +327,11 @@
         <a class="sidebar-link sidebar-sublink flex items-center gap-3 py-2 text-sm" data-view="sowpo">SOW and PO Tracking</a>
         <a class="sidebar-link sidebar-sublink flex items-center gap-3 py-2 text-sm" data-view="analytics">Client Analysis</a>
       </div>
+
+      <a id="adminSettingsNavLink" class="sidebar-link hidden flex items-center gap-3 px-4 py-2.5 text-sm" data-view="admin">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009.6 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9.6a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        Admin Settings
+      </a>
     </nav>
   </aside>
 
@@ -1639,6 +1644,41 @@
           <a href="#" id="offboardingClearFilters" class="text-sm link">Clear Filters</a>
           <div class="flex items-center gap-1 text-sm" id="offboardingPagination"></div>
           <a href="#" class="text-sm link" id="offboardingDownloadLink">Download List Data</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= ADMIN SETTINGS ================= -->
+    <div id="view-admin" class="view-panel hidden">
+      <div class="mb-4">
+        <h1 class="text-2xl font-bold mb-1">Admin Settings</h1>
+        <p class="text-sm text-[var(--muted)]">Control what recruiters (Standard users) can see, and manage accounts.</p>
+      </div>
+
+      <div class="stat-card rounded-lg p-4 mb-5">
+        <h2 class="text-sm font-semibold mb-3">Visibility</h2>
+        <label class="flex items-center gap-3 cursor-pointer">
+          <input type="checkbox" id="adminFinancialsToggle" class="w-4 h-4" />
+          <span class="text-sm">Standard users can view financial data (payroll, billing, margins, revenue/cost figures)</span>
+        </label>
+        <p class="text-xs text-[var(--muted)] mt-2">Admins can always see everything, regardless of this setting.</p>
+      </div>
+
+      <div class="stat-card rounded-lg p-4">
+        <h2 class="text-sm font-semibold mb-3">Users</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-xs text-[var(--muted)] border-b border-[var(--border)]">
+                <th class="px-3 py-2 font-medium">Name</th>
+                <th class="px-3 py-2 font-medium">Email</th>
+                <th class="px-3 py-2 font-medium">Role</th>
+                <th class="px-3 py-2 font-medium">Status</th>
+                <th class="px-3 py-2 font-medium">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="adminUsersTableBody"></tbody>
+          </table>
         </div>
       </div>
     </div>
