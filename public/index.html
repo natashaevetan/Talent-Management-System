@@ -1043,7 +1043,7 @@
         <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-[var(--border)]">
           <a href="#" id="workpassClearFilters" class="text-sm link">Clear Filters</a>
           <div class="flex items-center gap-1 text-sm" id="workpassPagination"></div>
-          <a href="#" class="text-sm link" id="workpassDownloadLink">Download List Data</a>
+          <span class="text-sm text-[var(--muted)]">Download List Data: <a href="#" class="link" id="workpassDownloadLinkXlsx">Excel</a> <span class="mx-0.5">·</span> <a href="#" class="link" id="workpassDownloadLinkCsv">CSV</a></span>
         </div>
       </div>
     </div>
@@ -1121,7 +1121,7 @@
         <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-[var(--border)]">
           <a href="#" id="contractsClearFilters" class="text-sm link">Clear Filters</a>
           <div class="flex items-center gap-1 text-sm" id="contractsPagination"></div>
-          <a href="#" class="text-sm link" id="contractsDownloadLink">Download List Data</a>
+          <span class="text-sm text-[var(--muted)]">Download List Data: <a href="#" class="link" id="contractsDownloadLinkXlsx">Excel</a> <span class="mx-0.5">·</span> <a href="#" class="link" id="contractsDownloadLinkCsv">CSV</a></span>
         </div>
       </div>
     </div>
@@ -1195,7 +1195,7 @@
         <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-[var(--border)]">
           <a href="#" id="financeClearFilters" class="text-sm link">Clear Filters</a>
           <div class="flex items-center gap-1 text-sm" id="financePagination"></div>
-          <a href="#" class="text-sm link" id="financeDownloadLink">Download List Data</a>
+          <span class="text-sm text-[var(--muted)]">Download List Data: <a href="#" class="link" id="financeDownloadLinkXlsx">Excel</a> <span class="mx-0.5">·</span> <a href="#" class="link" id="financeDownloadLinkCsv">CSV</a></span>
         </div>
       </div>
     </div>
@@ -1265,7 +1265,7 @@
         <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-[var(--border)]">
           <a href="#" id="billingClearFilters" class="text-sm link">Clear Filters</a>
           <div class="flex items-center gap-1 text-sm" id="billingPagination"></div>
-          <a href="#" class="text-sm link" id="billingDownloadLink">Download List Data</a>
+          <span class="text-sm text-[var(--muted)]">Download List Data: <a href="#" class="link" id="billingDownloadLinkXlsx">Excel</a> <span class="mx-0.5">·</span> <a href="#" class="link" id="billingDownloadLinkCsv">CSV</a></span>
         </div>
       </div>
     </div>
@@ -1339,7 +1339,7 @@
         <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-[var(--border)]">
           <a href="#" id="operationsClearFilters" class="text-sm link">Clear Filters</a>
           <div class="flex items-center gap-1 text-sm" id="operationsPagination"></div>
-          <a href="#" class="text-sm link" id="operationsDownloadLink">Download List Data</a>
+          <span class="text-sm text-[var(--muted)]">Download List Data: <a href="#" class="link" id="operationsDownloadLinkXlsx">Excel</a> <span class="mx-0.5">·</span> <a href="#" class="link" id="operationsDownloadLinkCsv">CSV</a></span>
         </div>
       </div>
     </div>
@@ -1353,6 +1353,7 @@
         </div>
         <div class="flex gap-2">
           <button id="exportExcelBtn" class="btn-secondary rounded-md px-3.5 py-1.5 text-sm font-medium">Export to Excel</button>
+          <button id="exportCsvBtn" class="btn-secondary rounded-md px-3.5 py-1.5 text-sm font-medium">Export to CSV</button>
           <button id="exportPdfBtn" class="btn-secondary rounded-md px-3.5 py-1.5 text-sm font-medium">Export to PDF</button>
         </div>
       </div>
@@ -1460,7 +1461,7 @@
         <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-[var(--border)]">
           <a href="#" id="clientsClearFilters" class="text-sm link">Clear Filters</a>
           <div class="flex items-center gap-1 text-sm" id="clientsPagination"></div>
-          <a href="#" class="text-sm link" id="clientsDownloadLink">Download List Data</a>
+          <span class="text-sm text-[var(--muted)]">Download List Data: <a href="#" class="link" id="clientsDownloadLinkXlsx">Excel</a> <span class="mx-0.5">·</span> <a href="#" class="link" id="clientsDownloadLinkCsv">CSV</a></span>
         </div>
       </div>
     </div>
@@ -1520,7 +1521,7 @@
           <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-[var(--border)]">
             <a href="#" id="sowClearFilters" class="text-sm link">Clear Filters</a>
             <div class="flex items-center gap-1 text-sm" id="sowPagination"></div>
-            <a href="#" class="text-sm link" id="sowDownloadLink">Download List Data</a>
+            <span class="text-sm text-[var(--muted)]">Download List Data: <a href="#" class="link" id="sowDownloadLinkXlsx">Excel</a> <span class="mx-0.5">·</span> <a href="#" class="link" id="sowDownloadLinkCsv">CSV</a></span>
           </div>
         </div>
       </div>
@@ -1573,7 +1574,7 @@
           <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-[var(--border)]">
             <a href="#" id="poClearFilters" class="text-sm link">Clear Filters</a>
             <div class="flex items-center gap-1 text-sm" id="poPagination"></div>
-            <a href="#" class="text-sm link" id="poDownloadLink">Download List Data</a>
+            <span class="text-sm text-[var(--muted)]">Download List Data: <a href="#" class="link" id="poDownloadLinkXlsx">Excel</a> <span class="mx-0.5">·</span> <a href="#" class="link" id="poDownloadLinkCsv">CSV</a></span>
           </div>
         </div>
       </div>
@@ -1643,7 +1644,7 @@
         <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-[var(--border)]">
           <a href="#" id="offboardingClearFilters" class="text-sm link">Clear Filters</a>
           <div class="flex items-center gap-1 text-sm" id="offboardingPagination"></div>
-          <a href="#" class="text-sm link" id="offboardingDownloadLink">Download List Data</a>
+          <span class="text-sm text-[var(--muted)]">Download List Data: <a href="#" class="link" id="offboardingDownloadLinkXlsx">Excel</a> <span class="mx-0.5">·</span> <a href="#" class="link" id="offboardingDownloadLinkCsv">CSV</a></span>
         </div>
       </div>
     </div>
@@ -1898,6 +1899,13 @@
     <button id="closeExportModal" class="icon-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
   </div>
   <div class="px-6 py-5 space-y-5">
+    <div>
+      <label class="field-label mb-2">Format</label>
+      <div class="flex items-center gap-4 text-sm">
+        <label class="flex items-center gap-1.5 cursor-pointer"><input type="radio" name="exportFormat" id="exportFormatXlsx" value="xlsx" checked/> Excel (.xlsx)</label>
+        <label class="flex items-center gap-1.5 cursor-pointer"><input type="radio" name="exportFormat" id="exportFormatCsv" value="csv"/> CSV (.csv)</label>
+      </div>
+    </div>
     <div>
       <label class="field-label mb-2">Rows to Export</label>
       <div class="flex items-center gap-4 text-sm">

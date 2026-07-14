@@ -373,9 +373,10 @@ function makeTalent(){
 }
 let talents = []; // populated from the API at bootstrap (see bootstrap() at the end of this file)
 
-/* Generic Excel export: columns = [{label, value(row)}], rows = the current filtered/sorted
-   array a view is displaying. Exports exactly what's on screen, not the full unfiltered dataset. */
-function exportRowsToExcel(filename, columns, rows){
+/* Generic Excel/CSV export: columns = [{label, value(row)}], rows = the current filtered/sorted
+   array a view is displaying. Exports exactly what's on screen, not the full unfiltered dataset.
+   format is 'xlsx' (default) or 'csv'. */
+function exportRowsToExcel(filename, columns, rows, format='xlsx'){
   if(!rows || rows.length === 0){
     showToast("No rows to export with the current filters.");
     return;
@@ -388,8 +389,9 @@ function exportRowsToExcel(filename, columns, rows){
   const ws = XLSX.utils.json_to_sheet(data);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
-  XLSX.writeFile(wb, filename);
-  showToast(`Exported ${rows.length} row${rows.length===1?'':'s'} to ${filename}`, checkIcon);
+  const outFilename = filename.replace(/\.(xlsx|csv)$/i, '') + '.' + format;
+  XLSX.writeFile(wb, outFilename, format==='csv' ? { bookType:'csv' } : undefined);
+  showToast(`Exported ${rows.length} row${rows.length===1?'':'s'} to ${outFilename}`, checkIcon);
 }
 function xlDate(d){ return d ? fmtDate(d) : ''; }
 
@@ -1075,6 +1077,7 @@ document.getElementById('exportSelectNone').addEventListener('click', e=>{
 
 document.getElementById('confirmExportBtn').addEventListener('click', ()=>{
   const scope = document.querySelector('input[name="exportScope"]:checked').value;
+  const format = document.querySelector('input[name="exportFormat"]:checked').value;
   const rows = scope === 'all' ? talents : getFiltered();
   const selectedKeys = Array.from(document.querySelectorAll('.export-col-checkbox:checked')).map(cb=>cb.value);
   if(selectedKeys.length === 0){
@@ -1091,8 +1094,8 @@ document.getElementById('confirmExportBtn').addEventListener('click', ()=>{
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Talents");
-    const filename = `talents_export_${toISO(today)}.xlsx`;
-    XLSX.writeFile(wb, filename);
+    const filename = `talents_export_${toISO(today)}.${format}`;
+    XLSX.writeFile(wb, filename, format==='csv' ? { bookType:'csv' } : undefined);
     closeExportModalFn();
     showToast(`Exported ${data.length} talents to ${filename}`, checkIcon);
   } catch(err){
@@ -1236,6 +1239,14 @@ document.getElementById('importFileInput').addEventListener('change', async (e)=
   const previewEl = document.getElementById('importPreview');
   const summaryEl = document.getElementById('importPreviewSummary');
   if(!file){ previewEl.classList.add('hidden'); importParsedRows = null; updateImportConfirmEnabled(); return; }
+  if(!/\.(xlsx|xls|csv)$/i.test(file.name)){
+    importParsedRows = null;
+    summaryEl.innerHTML = `<div style="color:var(--red-text)">"${file.name}" isn't a supported file type. Please select an Excel (.xlsx/.xls) or CSV (.csv) file.</div>`;
+    previewEl.classList.remove('hidden');
+    updateImportConfirmEnabled();
+    e.target.value = '';
+    return;
+  }
   try{
     const { rows, skippedPreview } = await readImportFile(file);
     importParsedRows = rows;
@@ -2949,8 +2960,7 @@ document.getElementById('workpassClearFilters').addEventListener('click', e=>{
   msWorkpassRenewalStatus.reset();
   renderWorkPass();
 });
-document.getElementById('workpassDownloadLink').addEventListener('click', e=>{
-  e.preventDefault();
+function downloadWorkpassList(format){
   exportRowsToExcel('work-pass.xlsx', [
     { label: 'ID', value: c=>`C${String(c.id).padStart(6,'0')}` },
     { label: 'Name', value: c=>c.name },
@@ -2965,8 +2975,10 @@ document.getElementById('workpassDownloadLink').addEventListener('click', e=>{
     { label: 'Remarks', value: c=>c.passRenewalRemarks || '' },
     { label: 'Case Owner', value: c=>c.caseOwner },
     { label: 'Entity', value: c=>c.entity },
-  ], lastWorkpassRows);
-});
+  ], lastWorkpassRows, format);
+}
+document.getElementById('workpassDownloadLinkXlsx').addEventListener('click', e=>{ e.preventDefault(); downloadWorkpassList('xlsx'); });
+document.getElementById('workpassDownloadLinkCsv').addEventListener('click', e=>{ e.preventDefault(); downloadWorkpassList('csv'); });
 
 /* ---------- CONTRACTS & SOW/PO ---------- */
 let contractsSearchTerm = "";
@@ -3012,8 +3024,7 @@ function initContractsFilters(){
     msContractsRenewalStatus.reset();
     renderContracts();
   });
-  document.getElementById('contractsDownloadLink').addEventListener('click', e=>{
-    e.preventDefault();
+  function downloadContractsList(format){
     exportRowsToExcel('contracts.xlsx', [
       { label: 'ID', value: c=>`C${String(c.id).padStart(6,'0')}` },
       { label: 'Name', value: c=>c.name },
@@ -3026,8 +3037,10 @@ function initContractsFilters(){
       { label: 'Remarks', value: c=>c.renewalRemarks || '' },
       { label: 'Case Owner', value: c=>c.caseOwner },
       { label: 'Entity', value: c=>c.entity },
-    ], lastContractsRows);
-  });
+    ], lastContractsRows, format);
+  }
+  document.getElementById('contractsDownloadLinkXlsx').addEventListener('click', e=>{ e.preventDefault(); downloadContractsList('xlsx'); });
+  document.getElementById('contractsDownloadLinkCsv').addEventListener('click', e=>{ e.preventDefault(); downloadContractsList('csv'); });
 }
 
 function updateContractsSortArrows(){
@@ -3362,8 +3375,7 @@ function initFinanceFilters(){
     msFinanceSalary.reset();
     renderFinance();
   });
-  document.getElementById('financeDownloadLink').addEventListener('click', e=>{
-    e.preventDefault();
+  function downloadFinanceList(format){
     exportRowsToExcel('finance.xlsx', [
       { label: 'ID', value: c=>`C${String(c.id).padStart(6,'0')}` },
       { label: 'Name', value: c=>c.name },
@@ -3377,8 +3389,10 @@ function initFinanceFilters(){
       { label: 'Allowances', value: c=>Math.round(lastFinanceFigures.get(c.id).allowances) },
       { label: 'Claims', value: c=>Math.round(lastFinanceFigures.get(c.id).claims) },
       { label: 'Work Pass Admin Fee', value: c=>Math.round(lastFinanceFigures.get(c.id).adminFee) },
-    ], lastFinanceRows);
-  });
+    ], lastFinanceRows, format);
+  }
+  document.getElementById('financeDownloadLinkXlsx').addEventListener('click', e=>{ e.preventDefault(); downloadFinanceList('xlsx'); });
+  document.getElementById('financeDownloadLinkCsv').addEventListener('click', e=>{ e.preventDefault(); downloadFinanceList('csv'); });
 }
 
 function updateFinanceSortArrows(){
@@ -3608,8 +3622,7 @@ function initBillingFilters(){
     msBillingStatusInstance.reset();
     renderBilling();
   });
-  document.getElementById('billingDownloadLink').addEventListener('click', e=>{
-    e.preventDefault();
+  function downloadBillingList(format){
     exportRowsToExcel('talent-billing.xlsx', [
       { label: 'ID', value: c=>`C${String(c.id).padStart(6,'0')}` },
       { label: 'Name', value: c=>c.name },
@@ -3621,8 +3634,10 @@ function initBillingFilters(){
       { label: 'Status', value: c=>c.invoiceStatus },
       { label: 'Due Date', value: c=>xlDate(c.talentInvoiceDueDate) },
       { label: 'Paid Date', value: c=>xlDate(c.talentInvoicePaidDate) },
-    ], lastBillingRows);
-  });
+    ], lastBillingRows, format);
+  }
+  document.getElementById('billingDownloadLinkXlsx').addEventListener('click', e=>{ e.preventDefault(); downloadBillingList('xlsx'); });
+  document.getElementById('billingDownloadLinkCsv').addEventListener('click', e=>{ e.preventDefault(); downloadBillingList('csv'); });
 }
 
 function updateBillingSortArrows(){
@@ -3886,8 +3901,7 @@ function initOperationsFilters(){
     msOperationsApproval.reset();
     renderOperations();
   });
-  document.getElementById('operationsDownloadLink').addEventListener('click', e=>{
-    e.preventDefault();
+  function downloadOperationsList(format){
     exportRowsToExcel('leave-timesheet.xlsx', [
       { label: 'ID', value: c=>`C${String(c.id).padStart(6,'0')}` },
       { label: 'Name', value: c=>c.name },
@@ -3899,8 +3913,10 @@ function initOperationsFilters(){
       { label: 'Client Approved', value: c=>c.clientApproved },
       { label: 'Overtime Hours', value: c=>c.overtimeHours },
       { label: 'Absence Days', value: c=>c.absenceDays },
-    ], lastOperationsRows);
-  });
+    ], lastOperationsRows, format);
+  }
+  document.getElementById('operationsDownloadLinkXlsx').addEventListener('click', e=>{ e.preventDefault(); downloadOperationsList('xlsx'); });
+  document.getElementById('operationsDownloadLinkCsv').addEventListener('click', e=>{ e.preventDefault(); downloadOperationsList('csv'); });
 }
 function updateOperationsSortArrows(){
   document.querySelectorAll('.operations-sort-caret').forEach(el=>{
@@ -4328,8 +4344,7 @@ function initClientsFilters(){
     msClientsStatus.reset();
     renderClients();
   });
-  document.getElementById('clientsDownloadLink').addEventListener('click', e=>{
-    e.preventDefault();
+  function downloadClientsList(format){
     exportRowsToExcel('clients.xlsx', [
       { label: 'Client', value: r=>r.client },
       { label: 'Industry', value: r=>r.industry },
@@ -4339,8 +4354,10 @@ function initClientsFilters(){
       { label: 'Account Manager', value: r=>r.accountManager },
       { label: 'Status', value: r=>r.status },
       { label: 'Talent Count', value: r=>r.talentCount },
-    ], lastClientsRows);
-  });
+    ], lastClientsRows, format);
+  }
+  document.getElementById('clientsDownloadLinkXlsx').addEventListener('click', e=>{ e.preventDefault(); downloadClientsList('xlsx'); });
+  document.getElementById('clientsDownloadLinkCsv').addEventListener('click', e=>{ e.preventDefault(); downloadClientsList('csv'); });
 }
 function updateClientsSortArrows(){
   document.querySelectorAll('.clients-sort-caret').forEach(el=>{
@@ -4493,8 +4510,7 @@ function initSowFilters(){
     msSowRequired.reset();
     renderSowTable();
   });
-  document.getElementById('sowDownloadLink').addEventListener('click', e=>{
-    e.preventDefault();
+  function downloadSowList(format){
     exportRowsToExcel('sow-tracking.xlsx', [
       { label: 'Client', value: r=>r.client },
       { label: 'Project', value: r=>r.project },
@@ -4502,8 +4518,10 @@ function initSowFilters(){
       { label: 'SOW Status', value: r=>r.sowStatus },
       { label: 'Valid To', value: r=>xlDate(r.validTo) },
       { label: 'Remarks', value: r=>r.remarks || '' },
-    ], lastSowRows);
-  });
+    ], lastSowRows, format);
+  }
+  document.getElementById('sowDownloadLinkXlsx').addEventListener('click', e=>{ e.preventDefault(); downloadSowList('xlsx'); });
+  document.getElementById('sowDownloadLinkCsv').addEventListener('click', e=>{ e.preventDefault(); downloadSowList('csv'); });
 }
 function updateSowSortArrows(){
   document.querySelectorAll('.sow-sort-caret').forEach(el=>{
@@ -4605,8 +4623,7 @@ function initPoFilters(){
     msPoMonth.reset();
     renderPoTable();
   });
-  document.getElementById('poDownloadLink').addEventListener('click', e=>{
-    e.preventDefault();
+  function downloadPoList(format){
     exportRowsToExcel('po-tracking.xlsx', [
       { label: 'Client', value: r=>r.client },
       { label: 'Month', value: r=>monthLabelFull(r.month) },
@@ -4614,8 +4631,10 @@ function initPoFilters(){
       { label: 'PO Status', value: r=>r.poStatus },
       { label: 'PO Number', value: r=>r.poNo || '' },
       { label: 'Remarks', value: r=>r.remarks || '' },
-    ], lastPoRows);
-  });
+    ], lastPoRows, format);
+  }
+  document.getElementById('poDownloadLinkXlsx').addEventListener('click', e=>{ e.preventDefault(); downloadPoList('xlsx'); });
+  document.getElementById('poDownloadLinkCsv').addEventListener('click', e=>{ e.preventDefault(); downloadPoList('csv'); });
 }
 function updatePoSortArrows(){
   document.querySelectorAll('.po-sort-caret').forEach(el=>{
@@ -6171,7 +6190,7 @@ function showBillingEdit(client, safeId){
     }
   });
 }
-document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
+function downloadClientAnalysisList(format){
   exportRowsToExcel('client-analysis.xlsx', [
     { label: 'Client', value: ({client})=>client },
     { label: 'Talents', value: ({m})=>m.count },
@@ -6180,9 +6199,11 @@ document.getElementById('exportExcelBtn').addEventListener('click', ()=>{
     { label: 'Gross Profit', value: ({m})=>Math.round(m.grossProfit) },
     { label: 'Gross Margin %', value: ({m})=>m.grossMargin.toFixed(1) },
     { label: 'Work Pass Admin Fee', value: ({m})=>Math.round(m.workPassAdminFee) },
-  ], lastAnalyticsClientData);
-});
-document.getElementById('exportPdfBtn').addEventListener('click', ()=> showToast("PDF export isn't available yet — use “Export to Excel” for now."));
+  ], lastAnalyticsClientData, format);
+}
+document.getElementById('exportExcelBtn').addEventListener('click', ()=> downloadClientAnalysisList('xlsx'));
+document.getElementById('exportCsvBtn').addEventListener('click', ()=> downloadClientAnalysisList('csv'));
+document.getElementById('exportPdfBtn').addEventListener('click', ()=> showToast("PDF export isn't available yet — use “Export to Excel” or “Export to CSV” for now."));
 
 /* ---------- OFFBOARDING ---------- */
 function computeFinalSalary(c){
@@ -6236,8 +6257,7 @@ function initOffboardingFilters(){
     msOffboardingStatus.reset();
     renderOffboarding();
   });
-  document.getElementById('offboardingDownloadLink').addEventListener('click', e=>{
-    e.preventDefault();
+  function downloadOffboardingList(format){
     exportRowsToExcel('offboarding.xlsx', [
       { label: 'ID', value: c=>`C${String(c.id).padStart(6,'0')}` },
       { label: 'Name', value: c=>c.name },
@@ -6248,8 +6268,10 @@ function initOffboardingFilters(){
       { label: 'Notice Served', value: c=>c.noticeServed },
       { label: 'Client Notified', value: c=>c.clientNotified },
       { label: 'Exit Docs Completed', value: c=>c.exitDocsCompleted },
-    ], lastOffboardingRows);
-  });
+    ], lastOffboardingRows, format);
+  }
+  document.getElementById('offboardingDownloadLinkXlsx').addEventListener('click', e=>{ e.preventDefault(); downloadOffboardingList('xlsx'); });
+  document.getElementById('offboardingDownloadLinkCsv').addEventListener('click', e=>{ e.preventDefault(); downloadOffboardingList('csv'); });
 }
 function updateOffboardingSortArrows(){
   document.querySelectorAll('.offboarding-sort-caret').forEach(el=>{
