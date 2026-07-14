@@ -72,9 +72,12 @@ let renewalActionSeq = 0;
 
 function computeDerived(c){
   c.contractDaysLeft = Math.ceil((c.contractEnd - today) / 86400000);
-  c.passDaysLeft = Math.ceil((c.passExpiry - today) / 86400000);
+  // passExpiry is null for talents with no work pass on file (workPassType "Not Applicable",
+  // or no WorkPass record at all) — leave passDaysLeft null rather than computing garbage
+  // from `null - today` arithmetic.
+  c.passDaysLeft = c.passExpiry ? Math.ceil((c.passExpiry - today) / 86400000) : null;
   c.policyDaysLeft = c.policyExpiry ? Math.ceil((c.policyExpiry - today) / 86400000) : null;
-  c.alert = c.passDaysLeft <= 30 || c.contractDaysLeft <= 30;
+  c.alert = (c.passDaysLeft !== null && c.passDaysLeft <= 30) || c.contractDaysLeft <= 30;
   return c;
 }
 
@@ -753,7 +756,7 @@ function renderStats(){
   const noticePeriod = talents.filter(c=>contractStatusDisplay(c).label === "Notice Period").length;
   const headcount = talents.filter(c=>["Active","Eligible for Renewal","Requires Renewal","Notice Period"].includes(contractStatusDisplay(c).label)).length;
   const expiringContracts = talents.filter(c=>c.contractDaysLeft < 46).length;
-  const expiringWorkPasses = talents.filter(c=>c.passDaysLeft < 46).length;
+  const expiringWorkPasses = talents.filter(c=>c.passDaysLeft !== null && c.passDaysLeft < 46).length;
   const approachingExpiries = talents.filter(c=>c.alert).length;
   const totalPayroll = talents.reduce((s,c)=>s+c.salary,0);
 
@@ -2040,7 +2043,7 @@ const profileDropdown = document.getElementById('profileDropdown');
 function renderNotifications(){
   const list = document.getElementById('notifList');
 
-  const passExpiring = talents.filter(c=>c.passDaysLeft<=30).sort((a,b)=>a.passDaysLeft-b.passDaysLeft)
+  const passExpiring = talents.filter(c=>c.passDaysLeft!==null && c.passDaysLeft<=30).sort((a,b)=>a.passDaysLeft-b.passDaysLeft)
     .map(c=> talentNotifRow(c, "Work Pass", c.passDaysLeft<0 ? `Expired ${Math.abs(c.passDaysLeft)}d ago` : `Expires in ${c.passDaysLeft}d`));
 
   const contractExpiring = talents.filter(c=>c.contractDaysLeft<=30).sort((a,b)=>a.contractDaysLeft-b.contractDaysLeft)
@@ -2566,7 +2569,7 @@ function renderHome(){
   const pendingStart = talents.filter(c=>c.contractStart > today).length;
   const onNotice = talents.filter(c=>c.contractDaysLeft >= 0 && c.contractDaysLeft <= 30).length;
   const activeTalents = total - pendingStart - talents.filter(c=>c.contractDaysLeft < 0).length;
-  const expiringPasses = talents.filter(c=>c.passDaysLeft>=0 && c.passDaysLeft<=30).length;
+  const expiringPasses = talents.filter(c=>c.passDaysLeft!==null && c.passDaysLeft>=0 && c.passDaysLeft<=30).length;
   const expiringContracts = talents.filter(c=>c.contractDaysLeft>=0 && c.contractDaysLeft<=30).length;
   const pendingSOW = homeDashboardData ? homeDashboardData.pendingSow : 0;
 
@@ -2652,7 +2655,7 @@ function renderHomeExpiryTable(approaching){
         <span class="home-expiry-name-link cursor-pointer hover:underline hover:text-[var(--blue-dark)]" data-id="${c.id}">${c.name}</span>
       </td>
       <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">${c.client}</td>
-      <td class="px-4 py-1 whitespace-nowrap ${c.passDaysLeft<=30?'date-alert':''}">${fmtDate(c.passExpiry)}</td>
+      <td class="px-4 py-1 whitespace-nowrap ${c.passDaysLeft!==null && c.passDaysLeft<=30?'date-alert':''}">${fmtDate(c.passExpiry)}</td>
       <td class="px-4 py-1 whitespace-nowrap ${c.contractDaysLeft<=30?'date-alert':''}">${fmtDate(c.contractEnd)}</td>
     </tr>`).join('') : `<tr><td colspan="5" class="px-4 py-4 text-sm text-[var(--muted)]">No approaching expiries.</td></tr>`;
 
@@ -2677,7 +2680,7 @@ function workpassUrgency(daysLeft){
   return "safe";
 }
 function workpassUrgencyFor(c){
-  if(["Singapore Citizen","PR"].includes(c.workPassType)) return "lifetime";
+  if(!c.workPassType || ["Singapore Citizen","PR"].includes(c.workPassType)) return "lifetime";
   return workpassUrgency(c.passDaysLeft);
 }
 function workpassUrgencyMeta(urgency){
@@ -2755,7 +2758,7 @@ function renderWorkpassStatCards(){
     });
   });
 
-  const foreignPassTalents = talents.filter(c=>!["Singapore Citizen","PR"].includes(c.workPassType));
+  const foreignPassTalents = talents.filter(c=>c.workPassType && !["Singapore Citizen","PR"].includes(c.workPassType));
   const lifetimeCount = talents.length - foreignPassTalents.length;
   const expired = foreignPassTalents.filter(c=>c.passDaysLeft<0).length;
   const critical = foreignPassTalents.filter(c=>c.passDaysLeft>=0 && c.passDaysLeft<=30).length;
@@ -5306,7 +5309,8 @@ document.getElementById('manageTalentsPickerConfirmBtn').addEventListener('click
 
 function renderRenewalWorkpass(){
   const rows = sortRenewalRows(talents.filter(c=>{
-    if(["Singapore Citizen","PR"].includes(c.workPassType)) return false;
+    // No work pass on file at all (e.g. "Not Applicable") — nothing to renew, same as Citizen/PR.
+    if(!c.workPassType || ["Singapore Citizen","PR"].includes(c.workPassType)) return false;
     if(renewalViewMode.workpass!=='all' && c.passDaysLeft>90) return false;
     if(renewalWorkpassTypeTerm.length && !renewalWorkpassTypeTerm.includes(c.workPassType)) return false;
     if(renewalWorkpassStatusTerm.length && !renewalWorkpassStatusTerm.includes(passStatusDisplay(c).label)) return false;
@@ -5807,7 +5811,7 @@ function renderAnalytics(){
 function computeClientOpsFlags(client){
   const group = talents.filter(c=>c.client===client);
   const talentsEndingSoon = group.filter(c=>c.contractDaysLeft<=30).length;
-  const passExpirySoon = group.filter(c=>c.passDaysLeft<=30).length;
+  const passExpirySoon = group.filter(c=>c.passDaysLeft!==null && c.passDaysLeft<=30).length;
   const leaveLiabilityDays = group.reduce((s,c)=>s+c.annualLeaveBalance, 0);
   const leaveLiabilityCost = group.reduce((s,c)=>s+(c.annualLeaveBalance*(c.salary/30)), 0);
   const b = clientBilling[client];
