@@ -28,8 +28,9 @@ function generateExtraClientNames(count){
   return [...names];
 }
 const clients = []; // populated from the API at bootstrap (see bootstrap() at the end of this file)
-const projectTypes = ["Application Development","Infrastructure Support","Data Migration",
-  "Cloud Engineering","QA & Testing","Cybersecurity","Business Analysis","Project Management"];
+// Populated from real data at bootstrap (see bootstrap() at the end of this file) — empty
+// until project types actually exist in the data (e.g. none of the current imports set one).
+const projectTypes = [];
 const workPassTypes = ["EP","S Pass","Work Permit","Singapore Citizen","PR"];
 const workPassAdminFees = { "EP": 150, "S Pass": 100, "Work Permit": 60, "Singapore Citizen": 0, "PR": 0 };
 function getWorkPassAdminFee(c){ return workPassAdminFees[c.workPassType] ?? 0; }
@@ -6749,7 +6750,7 @@ async function bootstrap(){
     const initial = (me.name || me.email || '?')[0].toUpperCase();
     document.getElementById('profileBtn').textContent = initial;
 
-    const [talentsData, clientsData, dashboardData, sowData, poData, permissionSettings, recruitersData, entitiesData] = await Promise.all([
+    const [talentsData, clientsData, dashboardData, sowData, poData, permissionSettings, recruitersData, entitiesData, projectTypesData] = await Promise.all([
       api.talents.list(),
       api.clients.list(),
       api.dashboard.home(),
@@ -6758,6 +6759,7 @@ async function bootstrap(){
       api.admin.getSettings(),
       api.lookups.recruiters(),
       api.lookups.entities(),
+      api.lookups.projectTypes(),
     ]);
     canViewFinancials = me.role === 'ADMIN' || permissionSettings.standardCanViewFinancials;
     applyPermissionUI();
@@ -6780,16 +6782,26 @@ async function bootstrap(){
     poRecords.length = 0;
     poRecords.push(...poData);
 
-    // "Managed Under"/"Entity" filter + form dropdowns must reflect whatever recruiters and
-    // legal entities actually exist in the real data — not a fixed leftover mockup list.
+    // "Managed Under"/"Entity"/"Client"/"Project Type" filter + form dropdowns must reflect
+    // whatever actually exists in the real data — not a fixed leftover mockup list.
     caseOwners.length = 0;
     caseOwners.push(...recruitersData.map(r=>r.name));
     entities.length = 0;
     entities.push(...entitiesData.map(e=>e.name));
+    projectTypes.length = 0;
+    projectTypes.push(...projectTypesData.map(p=>p.name));
     msOwnerFilterMain.setOptions([...new Set(caseOwners)].sort());
     msEntityFilterMain.setOptions([...new Set(entities)].sort());
+    msClientFilter.setOptions([...new Set(clients)].sort());
+    msProjectFilter.setOptions([...new Set(projectTypes)].sort());
     fillOptions(document.getElementById('f_caseOwner'), [...new Set(caseOwners)].sort(), null);
+    addAddNewOption(document.getElementById('f_caseOwner'), "+ Add New Recruiter…");
     fillOptions(document.getElementById('f_entity'), [...new Set(entities)].sort(), null);
+    addAddNewOption(document.getElementById('f_entity'), "+ Add New Entity…");
+    fillOptions(document.getElementById('f_client'), [...new Set(clients)].sort(), null);
+    addAddNewOption(document.getElementById('f_client'), "+ Add New Client…");
+    fillOptions(document.getElementById('f_projectType'), [...new Set(projectTypes)].sort(), null);
+    addAddNewOption(document.getElementById('f_projectType'), "+ Add New Project Type…");
   }catch(err){
     if(err && err.status === 401) return; // api.js already redirected to /login.html
     document.body.innerHTML = `<div class="p-8 text-sm" style="color:var(--red-text)">Failed to load the application: ${err.message}. Check that the server is running and try refreshing.</div>`;
