@@ -55,8 +55,10 @@ const jobTitles = ["Software Engineer","DevOps Engineer","QA Analyst","Business 
 const skillPool = ["Java","Python","AWS","Azure","React","Node.js","Kubernetes","SQL","Terraform","Selenium","Power BI","C#","Docker","Agile","ServiceNow"];
 const workLocations = ["Client Site","Hybrid","Remote","Onsite - HQ"];
 const streetNames = ["Ang Mo Kio Ave","Tampines St","Bedok North Rd","Jurong West St","Yishun Ring Rd","Clementi Ave","Toa Payoh Lor","Punggol Way"];
-const caseOwners = ["James Lee","Sarah Koh","Peter Lim","Michelle Tan","David Ong","Rachel Ho"];
-const entities = ["DHC","Elitez","E&A","FMCG"];
+// Populated from real data at bootstrap (see bootstrap() at the end of this file) — not a
+// fixed list, grows/shrinks with whatever recruiters/entities actually exist in the data.
+const caseOwners = [];
+const entities = [];
 
 function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
 function pick(arr){ return arr[randInt(0,arr.length-1)]; }
@@ -6747,13 +6749,15 @@ async function bootstrap(){
     const initial = (me.name || me.email || '?')[0].toUpperCase();
     document.getElementById('profileBtn').textContent = initial;
 
-    const [talentsData, clientsData, dashboardData, sowData, poData, permissionSettings] = await Promise.all([
+    const [talentsData, clientsData, dashboardData, sowData, poData, permissionSettings, recruitersData, entitiesData] = await Promise.all([
       api.talents.list(),
       api.clients.list(),
       api.dashboard.home(),
       api.sow.list(),
       api.po.list(),
       api.admin.getSettings(),
+      api.lookups.recruiters(),
+      api.lookups.entities(),
     ]);
     canViewFinancials = me.role === 'ADMIN' || permissionSettings.standardCanViewFinancials;
     applyPermissionUI();
@@ -6775,6 +6779,17 @@ async function bootstrap(){
     sowRecords.push(...sowData);
     poRecords.length = 0;
     poRecords.push(...poData);
+
+    // "Managed Under"/"Entity" filter + form dropdowns must reflect whatever recruiters and
+    // legal entities actually exist in the real data — not a fixed leftover mockup list.
+    caseOwners.length = 0;
+    caseOwners.push(...recruitersData.map(r=>r.name));
+    entities.length = 0;
+    entities.push(...entitiesData.map(e=>e.name));
+    msOwnerFilterMain.setOptions([...new Set(caseOwners)].sort());
+    msEntityFilterMain.setOptions([...new Set(entities)].sort());
+    fillOptions(document.getElementById('f_caseOwner'), [...new Set(caseOwners)].sort(), null);
+    fillOptions(document.getElementById('f_entity'), [...new Set(entities)].sort(), null);
   }catch(err){
     if(err && err.status === 401) return; // api.js already redirected to /login.html
     document.body.innerHTML = `<div class="p-8 text-sm" style="color:var(--red-text)">Failed to load the application: ${err.message}. Check that the server is running and try refreshing.</div>`;
