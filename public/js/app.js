@@ -1973,7 +1973,7 @@ function renderTalentProfile(c){
 
   /* ----- Payroll & Cost tab (breakdown, read-only) ----- */
   document.getElementById('profileFinancials').innerHTML = [
-    dlRow("Salary (Monthly)", fmtMoney(c.salary)),
+    dlRow("Salary (Monthly)", c.salary ? fmtMoney(c.salary) : '-'),
     dlRow("Charge Rate (Daily)", fmtMoney(c.chargeRate)+"/day"),
     dlRow("Contract Start", fmtDate(c.contractStart)),
     dlRow("Contract End", `<span class="${contractAlert?'date-alert':''}">${fmtDate(c.contractEnd)}${contractAlert?` (${c.contractDaysLeft}d)`:''}</span>`),
@@ -3930,7 +3930,7 @@ function renderPayrollView(c){
   const leaveEncashment = Math.round(c.annualLeaveBalance * (c.salary/30));
 
   document.getElementById('payrollViewFields').innerHTML = [
-    dlRow("Basic Salary (Monthly)", fmtMoney(c.salary)),
+    dlRow("Basic Salary (Monthly)", c.salary ? fmtMoney(c.salary) : '-'),
     dlRow("Skills Development Levy", fmtMoney(c.skillsDevelopmentLevy)),
     dlRow("WICA", fmtMoney(c.wica)),
     dlRow("Medical Insurance", fmtMoney(c.medicalInsuranceCost)),

@@ -7,6 +7,7 @@ import { toJson } from "../../lib/json";
 import { upsertClientByName, upsertProjectTypeByName, upsertLegalEntityByName, upsertRecruiterByName } from "../../lib/lookups";
 import { nextRenewalSeq, isExpiryWithinRenewalWindow } from "../../lib/renewalRules";
 import { getPermissionSettings, canViewFinancials } from "../../lib/permissions";
+import { isCpfEligible } from "../../lib/computed";
 
 export const talentsRouter = Router();
 talentsRouter.use(requireAuth);
@@ -80,6 +81,8 @@ talentsRouter.post(
     const salary = body.salary ?? 0;
     const chargeRate = body.chargeRate ?? 0;
     const billingType = body.billingType ?? "Monthly";
+    const workPassType = body.workPassType ?? "EP";
+    const cpf = isCpfEligible(workPassType) ? Math.round(salary * 0.17) : 0;
 
     const talent = await prisma.talent.create({
       data: {
@@ -105,13 +108,13 @@ talentsRouter.post(
         },
         workPass: {
           create: {
-            workPassType: body.workPassType ?? "EP",
+            workPassType,
             passExpiry,
             passStatus: "Not Started",
           },
         },
         insurance: { create: { policyType: "Not Required" } },
-        payroll: { create: { salary, cpf: Math.round(salary * 0.17) } },
+        payroll: { create: { salary, cpf } },
         leaveTimesheet: { create: {} },
         offboarding: { create: { lastWorkingDay: contractEnd } },
       },
@@ -185,14 +188,14 @@ talentsRouter.post(
       const contractStart = r.contractStartDate ? new Date(r.contractStartDate) : today;
       const contractEnd = r.contractEndDate ? new Date(r.contractEndDate) : new Date(today.getFullYear() + 1, today.getMonth(), today.getDate());
 
+      const passTypeRaw = r.typeOfPass ? String(r.typeOfPass).trim() : "";
+      const hasWorkPass = !!passTypeRaw && passTypeRaw.toLowerCase() !== "not applicable";
+
       const salary = Number(r.basicSalary) || 0;
-      const cpf = Math.round(salary * 0.17);
+      const cpf = isCpfEligible(passTypeRaw) ? Math.round(salary * 0.17) : 0;
       const totalCost = r.totalEmploymentCost != null ? Number(r.totalEmploymentCost) : null;
       const otherStatutoryCosts = totalCost !== null ? Math.max(0, Math.round(totalCost - salary - cpf)) : 0;
       const chargeRate = Number(r.monthlyChargeRate) || 0;
-
-      const passTypeRaw = r.typeOfPass ? String(r.typeOfPass).trim() : "";
-      const hasWorkPass = !!passTypeRaw && passTypeRaw.toLowerCase() !== "not applicable";
 
       const poQuotationParts: string[] = [];
       if (r.quotationNumber) poQuotationParts.push(`Quotation: ${r.quotationNumber}`);

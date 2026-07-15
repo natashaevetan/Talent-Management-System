@@ -37,6 +37,12 @@ export function workPassAdminFee(workPassType: string): number {
   return WORK_PASS_ADMIN_FEES[workPassType] ?? 0;
 }
 
+// CPF (Singapore's mandatory retirement contribution) only applies to Singapore Citizens and
+// PRs — not EP/S Pass/Work Permit holders, and not talents with no work pass on file.
+export function isCpfEligible(workPassType: string | null | undefined): boolean {
+  return !!workPassType && LIFETIME_PASS_TYPES.has(workPassType);
+}
+
 export interface PayrollLike {
   salary: number;
   cpf: number;
