@@ -116,6 +116,7 @@ const api = {
     create: async (payload) => normalizeClientDates(await request("/clients", { method: "POST", body: JSON.stringify(payload) })),
     update: async (name, payload) => normalizeClientDates(await request(`/clients/${encodeURIComponent(name)}`, { method: "PATCH", body: JSON.stringify(payload) })),
     updateBilling: async (name, payload) => normalizeClientDates(await request(`/clients/${encodeURIComponent(name)}/billing`, { method: "PATCH", body: JSON.stringify(payload) })),
+    import: (rows) => request("/clients/import", { method: "POST", body: JSON.stringify({ rows }) }),
   },
   sow: {
     list: async () => (await request("/sow")).map(normalizeRecordDates),

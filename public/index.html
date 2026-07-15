@@ -626,11 +626,11 @@
         <div class="flex items-center gap-2">
           <button id="openImportModalBtn" class="btn-secondary rounded-md px-3.5 py-1.5 text-sm font-medium flex items-center gap-1.5">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            Import from Excel
+            Import
           </button>
           <button id="openExportModalBtn" class="btn-secondary rounded-md px-3.5 py-1.5 text-sm font-medium flex items-center gap-1.5">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Export to Excel
+            Export
           </button>
           <button id="openAddModalBtn" class="btn-primary rounded-md px-3.5 py-1.5 text-sm font-medium">+ Add a Talent</button>
         </div>
@@ -1351,11 +1351,6 @@
           <h1 class="text-2xl font-bold mb-1">Client Analysis</h1>
           <p class="text-sm text-[var(--muted)]">Project performance by client · click a client to see the full breakdown and 3-month trend, or click a card above to jump to the full list.</p>
         </div>
-        <div class="flex gap-2">
-          <button id="exportExcelBtn" class="btn-secondary rounded-md px-3.5 py-1.5 text-sm font-medium">Export to Excel</button>
-          <button id="exportCsvBtn" class="btn-secondary rounded-md px-3.5 py-1.5 text-sm font-medium">Export to CSV</button>
-          <button id="exportPdfBtn" class="btn-secondary rounded-md px-3.5 py-1.5 text-sm font-medium">Export to PDF</button>
-        </div>
       </div>
 
       <div class="stat-card rounded-lg p-4 mb-5">
@@ -1399,7 +1394,17 @@
           <h1 class="text-2xl font-bold mb-1">Clients</h1>
           <p class="text-sm text-[var(--muted)]">All client accounts · click a client to view or edit details, or click a card above to filter or jump to the full list.</p>
         </div>
-        <button id="openAddClientModalBtn" class="btn-primary rounded-md px-3.5 py-1.5 text-sm font-medium">+ Add a Client</button>
+        <div class="flex items-center gap-2">
+          <button id="openImportClientsModalBtn" class="btn-secondary rounded-md px-3.5 py-1.5 text-sm font-medium flex items-center gap-1.5">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Import
+          </button>
+          <button id="openExportClientsModalBtn" class="btn-secondary rounded-md px-3.5 py-1.5 text-sm font-medium flex items-center gap-1.5">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export
+          </button>
+          <button id="openAddClientModalBtn" class="btn-primary rounded-md px-3.5 py-1.5 text-sm font-medium">+ Add a Client</button>
+        </div>
       </div>
 
       <div class="stat-card rounded-lg p-4 mb-5">
@@ -1461,7 +1466,6 @@
         <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-[var(--border)]">
           <a href="#" id="clientsClearFilters" class="text-sm link">Clear Filters</a>
           <div class="flex items-center gap-1 text-sm" id="clientsPagination"></div>
-          <span class="text-sm text-[var(--muted)]">Download List Data: <a href="#" class="link" id="clientsDownloadLinkXlsx">Excel</a> <span class="mx-0.5">·</span> <a href="#" class="link" id="clientsDownloadLinkCsv">CSV</a></span>
         </div>
       </div>
     </div>
@@ -1893,8 +1897,8 @@
 <div id="exportModal" class="modal-card">
   <div class="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
     <div>
-      <h2 class="text-lg font-bold">Export to Excel</h2>
-      <p class="text-xs text-[var(--muted)]">Choose which columns and which rows to include.</p>
+      <h2 class="text-lg font-bold">Export</h2>
+      <p class="text-xs text-[var(--muted)]">CSV or XLSX files only.</p>
     </div>
     <button id="closeExportModal" class="icon-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
   </div>
@@ -1936,8 +1940,8 @@
 <div id="importModal" class="modal-card">
   <div class="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
     <div>
-      <h2 class="text-lg font-bold">Import from Excel</h2>
-      <p class="text-xs text-[var(--muted)]">Upload a client tracking sheet (.xlsx or .csv) to bulk-add or update talents.</p>
+      <h2 class="text-lg font-bold">Import</h2>
+      <p class="text-xs text-[var(--muted)]">CSV or XLSX files only.</p>
     </div>
     <button id="closeImportModal" class="icon-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
   </div>
@@ -1951,7 +1955,6 @@
     <div>
       <label class="field-label">File</label>
       <input id="importFileInput" type="file" accept=".xlsx,.xls,.csv" class="filter-input" />
-      <p class="text-xs text-[var(--muted)] mt-1">Expected columns: Name, Position, Basic Salary, Total Employment Cost, Monthly Charge Rate, FIN No., Type of Pass, Entity, Work Pass Issuance/Expiry Date, Contract Start/End Date, Hiring Name, Verifier Email Address, Dept, Quotation Number, PO number, Owner.</p>
     </div>
     <div id="importPreview" class="hidden">
       <div class="rounded-lg border border-[var(--border)] p-3 text-sm space-y-1" id="importPreviewSummary"></div>
@@ -1960,6 +1963,56 @@
   <div class="flex justify-end gap-2 px-6 py-4 border-t border-[var(--border)]">
     <button type="button" id="cancelImportModal" class="btn-secondary rounded-md px-4 py-2 text-sm font-medium">Cancel</button>
     <button type="button" id="confirmImportBtn" disabled class="btn-primary rounded-md px-4 py-2 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed">Import</button>
+  </div>
+</div>
+
+<!-- Import Clients Modal -->
+<div id="importClientsModalOverlay" class="overlay"></div>
+<div id="importClientsModal" class="modal-card">
+  <div class="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
+    <div>
+      <h2 class="text-lg font-bold">Import</h2>
+      <p class="text-xs text-[var(--muted)]">CSV or XLSX files only.</p>
+    </div>
+    <button id="closeImportClientsModal" class="icon-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+  </div>
+  <div class="px-6 py-5 space-y-5">
+    <div>
+      <label class="field-label">File</label>
+      <input id="importClientsFileInput" type="file" accept=".xlsx,.xls,.csv" class="filter-input" />
+    </div>
+    <div id="importClientsPreview" class="hidden">
+      <div class="rounded-lg border border-[var(--border)] p-3 text-sm space-y-1" id="importClientsPreviewSummary"></div>
+    </div>
+  </div>
+  <div class="flex justify-end gap-2 px-6 py-4 border-t border-[var(--border)]">
+    <button type="button" id="cancelImportClientsModal" class="btn-secondary rounded-md px-4 py-2 text-sm font-medium">Cancel</button>
+    <button type="button" id="confirmImportClientsBtn" disabled class="btn-primary rounded-md px-4 py-2 text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed">Import</button>
+  </div>
+</div>
+
+<!-- Export Clients Modal -->
+<div id="exportClientsModalOverlay" class="overlay"></div>
+<div id="exportClientsModal" class="modal-card">
+  <div class="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
+    <div>
+      <h2 class="text-lg font-bold">Export</h2>
+      <p class="text-xs text-[var(--muted)]">CSV or XLSX files only.</p>
+    </div>
+    <button id="closeExportClientsModal" class="icon-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+  </div>
+  <div class="px-6 py-5 space-y-5">
+    <div>
+      <label class="field-label mb-2">Format</label>
+      <div class="flex items-center gap-4 text-sm">
+        <label class="flex items-center gap-1.5 cursor-pointer"><input type="radio" name="exportClientsFormat" id="exportClientsFormatXlsx" value="xlsx" checked/> Excel (.xlsx)</label>
+        <label class="flex items-center gap-1.5 cursor-pointer"><input type="radio" name="exportClientsFormat" id="exportClientsFormatCsv" value="csv"/> CSV (.csv)</label>
+      </div>
+    </div>
+  </div>
+  <div class="flex justify-end gap-2 px-6 py-4 border-t border-[var(--border)]">
+    <button type="button" id="cancelExportClientsModal" class="btn-secondary rounded-md px-4 py-2 text-sm font-medium">Cancel</button>
+    <button type="button" id="confirmExportClientsBtn" class="btn-primary rounded-md px-4 py-2 text-sm font-medium">Export</button>
   </div>
 </div>
 

@@ -1285,6 +1285,170 @@ document.getElementById('confirmImportBtn').addEventListener('click', async ()=>
   }
 });
 
+/* ---------- Import/Export Clients ---------- */
+const CLIENT_IMPORT_HEADER_MAP = {
+  name: 'name',
+  industry: 'industry',
+  'contact person': 'contactPerson',
+  'contact email': 'contactEmail',
+  'contact number': 'contactNumber',
+  'account manager': 'accountManager',
+  status: 'status',
+};
+
+function parseClientImportWorkbook(workbook){
+  const sheetName = workbook.SheetNames[0];
+  const ws = workbook.Sheets[sheetName];
+  const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+  if(!raw.length) throw new Error("The file appears to be empty.");
+
+  const headerRow = raw[0].map(h => (h ?? '').toString().trim().toLowerCase());
+  const colIndexByKey = {};
+  Object.entries(CLIENT_IMPORT_HEADER_MAP).forEach(([header, key])=>{
+    const idx = headerRow.indexOf(header);
+    if(idx >= 0 && !(key in colIndexByKey)) colIndexByKey[key] = idx;
+  });
+  if(colIndexByKey.name === undefined){
+    throw new Error(`Couldn't find a "Name" column. Found headers: ${raw[0].filter(Boolean).join(', ')}`);
+  }
+
+  const rows = [];
+  const skippedPreview = [];
+  for(let i = 1; i < raw.length; i++){
+    const r = raw[i];
+    if(!r) continue;
+    const get = (key) => colIndexByKey[key] !== undefined ? r[colIndexByKey[key]] : null;
+    const name = (get('name') ?? '').toString().trim();
+    if(!name){
+      if(r.some(v=>v !== null && v !== '')) skippedPreview.push({ row: i + 1, name: '(no name)', reason: "insufficient data" });
+      continue;
+    }
+
+    const row = { name };
+    Object.values(CLIENT_IMPORT_HEADER_MAP).forEach(key=>{
+      if(key === 'name') return;
+      const val = get(key);
+      if(val === null || val === undefined || val === '') return;
+      row[key] = String(val).trim();
+    });
+    rows.push(row);
+  }
+  return { rows, skippedPreview };
+}
+
+function readClientImportFile(file){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Couldn't read the file."));
+    const isCsv = /\.csv$/i.test(file.name);
+    reader.onload = () => {
+      try{
+        const workbook = isCsv
+          ? XLSX.read(reader.result, { type: 'string', cellDates: true })
+          : XLSX.read(reader.result, { type: 'array', cellDates: true });
+        resolve(parseClientImportWorkbook(workbook));
+      }catch(err){
+        reject(err);
+      }
+    };
+    if(isCsv) reader.readAsText(file);
+    else reader.readAsArrayBuffer(file);
+  });
+}
+
+const importClientsModalOverlay = document.getElementById('importClientsModalOverlay');
+const importClientsModal = document.getElementById('importClientsModal');
+let importClientsParsedRows = null;
+
+function openImportClientsModal(){
+  document.getElementById('importClientsFileInput').value = '';
+  document.getElementById('importClientsPreview').classList.add('hidden');
+  document.getElementById('confirmImportClientsBtn').disabled = true;
+  importClientsParsedRows = null;
+  importClientsModalOverlay.classList.add('open');
+  importClientsModal.classList.add('open');
+}
+function closeImportClientsModalFn(){
+  importClientsModalOverlay.classList.remove('open');
+  importClientsModal.classList.remove('open');
+}
+document.getElementById('openImportClientsModalBtn').addEventListener('click', openImportClientsModal);
+document.getElementById('closeImportClientsModal').addEventListener('click', closeImportClientsModalFn);
+document.getElementById('cancelImportClientsModal').addEventListener('click', closeImportClientsModalFn);
+importClientsModalOverlay.addEventListener('click', closeImportClientsModalFn);
+
+document.getElementById('importClientsFileInput').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  const previewEl = document.getElementById('importClientsPreview');
+  const summaryEl = document.getElementById('importClientsPreviewSummary');
+  if(!file){ previewEl.classList.add('hidden'); importClientsParsedRows = null; document.getElementById('confirmImportClientsBtn').disabled = true; return; }
+  if(!/\.(xlsx|xls|csv)$/i.test(file.name)){
+    importClientsParsedRows = null;
+    summaryEl.innerHTML = `<div style="color:var(--red-text)">"${file.name}" isn't a supported file type. Please select an Excel (.xlsx/.xls) or CSV (.csv) file.</div>`;
+    previewEl.classList.remove('hidden');
+    document.getElementById('confirmImportClientsBtn').disabled = true;
+    e.target.value = '';
+    return;
+  }
+  try{
+    const { rows, skippedPreview } = await readClientImportFile(file);
+    importClientsParsedRows = rows;
+    const skippedHtml = skippedPreview.length
+      ? `<div class="text-[var(--muted)] mt-1">Skipped (insufficient data): ${skippedPreview.map(s=>`row ${s.row}`).join(', ')}</div>`
+      : '';
+    summaryEl.innerHTML = `<div><span class="font-semibold">${rows.length}</span> row${rows.length===1?'':'s'} ready to import.</div>${skippedHtml}`;
+    previewEl.classList.remove('hidden');
+  }catch(err){
+    importClientsParsedRows = null;
+    summaryEl.innerHTML = `<div style="color:var(--red-text)">${err.message}</div>`;
+    previewEl.classList.remove('hidden');
+  }
+  document.getElementById('confirmImportClientsBtn').disabled = !(importClientsParsedRows && importClientsParsedRows.length > 0);
+});
+
+document.getElementById('confirmImportClientsBtn').addEventListener('click', async ()=>{
+  if(!importClientsParsedRows || importClientsParsedRows.length === 0) return;
+  const btn = document.getElementById('confirmImportClientsBtn');
+  btn.disabled = true;
+  btn.textContent = "Importing…";
+  try{
+    const result = await api.clients.import(importClientsParsedRows);
+    closeImportClientsModalFn();
+    const skippedNote = result.skipped.length ? `, ${result.skipped.length} skipped` : '';
+    showToast(`Import complete — ${result.created} created, ${result.updated} updated${skippedNote}.`, checkIcon);
+    const clientsData = await api.clients.list();
+    clients.length = 0;
+    clients.push(...clientsData.map(c=>c.name));
+    Object.keys(clientProfiles).forEach(k=>delete clientProfiles[k]);
+    Object.keys(clientBilling).forEach(k=>delete clientBilling[k]);
+    clientsData.forEach(c=>{
+      clientProfiles[c.name] = { industry: c.industry, contactPerson: c.contactPerson, contactEmail: c.contactEmail, contactNumber: c.contactNumber, accountManager: c.accountManager, status: c.status };
+      if(c.billing) clientBilling[c.name] = c.billing;
+    });
+    renderClients();
+  }catch(err){
+    showToast(err.message || "Import failed — please try again.");
+  }finally{
+    btn.disabled = false;
+    btn.textContent = "Import";
+  }
+});
+
+const exportClientsModalOverlay = document.getElementById('exportClientsModalOverlay');
+const exportClientsModal = document.getElementById('exportClientsModal');
+function openExportClientsModal(){
+  exportClientsModalOverlay.classList.add('open');
+  exportClientsModal.classList.add('open');
+}
+function closeExportClientsModalFn(){
+  exportClientsModalOverlay.classList.remove('open');
+  exportClientsModal.classList.remove('open');
+}
+document.getElementById('openExportClientsModalBtn').addEventListener('click', openExportClientsModal);
+document.getElementById('closeExportClientsModal').addEventListener('click', closeExportClientsModalFn);
+document.getElementById('cancelExportClientsModal').addEventListener('click', closeExportClientsModalFn);
+exportClientsModalOverlay.addEventListener('click', closeExportClientsModalFn);
+
 /* ---------- Add Talent Modal ---------- */
 const modalOverlay = document.getElementById('modalOverlay');
 const addModal = document.getElementById('addModal');
@@ -4356,8 +4520,11 @@ function initClientsFilters(){
       { label: 'Talent Count', value: r=>r.talentCount },
     ], lastClientsRows, format);
   }
-  document.getElementById('clientsDownloadLinkXlsx').addEventListener('click', e=>{ e.preventDefault(); downloadClientsList('xlsx'); });
-  document.getElementById('clientsDownloadLinkCsv').addEventListener('click', e=>{ e.preventDefault(); downloadClientsList('csv'); });
+  document.getElementById('confirmExportClientsBtn').addEventListener('click', ()=>{
+    const format = document.querySelector('input[name="exportClientsFormat"]:checked').value;
+    downloadClientsList(format);
+    closeExportClientsModalFn();
+  });
 }
 function updateClientsSortArrows(){
   document.querySelectorAll('.clients-sort-caret').forEach(el=>{
@@ -6190,20 +6357,6 @@ function showBillingEdit(client, safeId){
     }
   });
 }
-function downloadClientAnalysisList(format){
-  exportRowsToExcel('client-analysis.xlsx', [
-    { label: 'Client', value: ({client})=>client },
-    { label: 'Talents', value: ({m})=>m.count },
-    { label: 'Monthly Revenue', value: ({m})=>Math.round(m.monthlyRevenue) },
-    { label: 'Monthly Cost', value: ({m})=>Math.round(m.monthlyCost) },
-    { label: 'Gross Profit', value: ({m})=>Math.round(m.grossProfit) },
-    { label: 'Gross Margin %', value: ({m})=>m.grossMargin.toFixed(1) },
-    { label: 'Work Pass Admin Fee', value: ({m})=>Math.round(m.workPassAdminFee) },
-  ], lastAnalyticsClientData, format);
-}
-document.getElementById('exportExcelBtn').addEventListener('click', ()=> downloadClientAnalysisList('xlsx'));
-document.getElementById('exportCsvBtn').addEventListener('click', ()=> downloadClientAnalysisList('csv'));
-document.getElementById('exportPdfBtn').addEventListener('click', ()=> showToast("PDF export isn't available yet — use “Export to Excel” or “Export to CSV” for now."));
 
 /* ---------- OFFBOARDING ---------- */
 function computeFinalSalary(c){
