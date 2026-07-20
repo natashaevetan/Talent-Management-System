@@ -4907,7 +4907,7 @@ let policySearchTerm = "";
 let policyTypeTerm = [];
 let policyStatusTerm = [];
 let policyRenewalStatusTerm = [];
-let policyViewMode = 'pending';
+let policyViewMode = 'all'; // defaults to showing everyone — "Requiring Renewal" is empty until real insurance data exists
 
 function updatePolicyViewButtonStyles(){
   document.querySelectorAll('.policy-view-btn').forEach(btn=>{
@@ -4993,22 +4993,22 @@ function renderPolicyTable(){
       <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">C${String(c.id).padStart(6,'0')}</td>
       <td class="px-4 py-1 font-medium whitespace-nowrap"><span class="renewal-talent-link cursor-pointer hover:underline hover:text-[var(--blue-dark)]" data-id="${c.id}" data-returnview="insurance">${c.name}</span></td>
       <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap"><span class="renewal-client-link cursor-pointer hover:underline hover:text-[var(--blue-dark)]" data-client="${c.client}">${c.client}</span></td>
-      <td class="px-4 py-1 whitespace-nowrap">${c.policyType}</td>
-      <td class="px-4 py-1 whitespace-nowrap">${hasPolicy ? fmtDate(c.policyIssueDate) : '—'}</td>
-      <td class="px-4 py-1 whitespace-nowrap ${hasPolicy && c.policyDaysLeft<=30?'date-alert':''}">${hasPolicy ? fmtDate(c.policyExpiry) : '—'}</td>
-      <td class="px-4 py-1 whitespace-nowrap ${hasPolicy && c.policyDaysLeft<=30?'date-alert':''}">${hasPolicy ? (c.policyDaysLeft<0?`${Math.abs(c.policyDaysLeft)}d overdue`:`${c.policyDaysLeft}d`) : '—'}</td>
-      <td class="px-4 py-1 whitespace-nowrap">${hasPolicy ? `<span class="pill" style="${bucket.style}">${bucket.label}</span>` : '<span class="text-[var(--muted)]">—</span>'}</td>
+      <td class="px-4 py-1 whitespace-nowrap">${hasPolicy ? c.policyType : '-'}</td>
+      <td class="px-4 py-1 whitespace-nowrap">${hasPolicy ? fmtDate(c.policyIssueDate) : '-'}</td>
+      <td class="px-4 py-1 whitespace-nowrap ${hasPolicy && c.policyDaysLeft<=30?'date-alert':''}">${hasPolicy ? fmtDate(c.policyExpiry) : '-'}</td>
+      <td class="px-4 py-1 whitespace-nowrap ${hasPolicy && c.policyDaysLeft<=30?'date-alert':''}">${hasPolicy ? (c.policyDaysLeft<0?`${Math.abs(c.policyDaysLeft)}d overdue`:`${c.policyDaysLeft}d`) : '-'}</td>
+      <td class="px-4 py-1 whitespace-nowrap">${hasPolicy ? `<span class="pill" style="${bucket.style}">${bucket.label}</span>` : '<span class="text-[var(--muted)]">-</span>'}</td>
       <td class="px-4 py-1 whitespace-nowrap">
-        ${needsRenewalCols ? `<span class="pill" style="${renewalStatusPillStyleContract(c.policyRenewalStatus)}">${renewalStatusDisplayLabel(c.policyRenewalStatus)}</span>` : '<span class="text-[var(--muted)]">—</span>'}
+        ${needsRenewalCols ? `<span class="pill" style="${renewalStatusPillStyleContract(c.policyRenewalStatus)}">${renewalStatusDisplayLabel(c.policyRenewalStatus)}</span>` : '<span class="text-[var(--muted)]">-</span>'}
       </td>
-      <td class="px-4 py-1 text-[var(--muted)] max-w-[220px] truncate" title="${c.policyRemarks || ''}">${c.policyRemarks || '—'}</td>
+      <td class="px-4 py-1 text-[var(--muted)] max-w-[220px] truncate" title="${c.policyRemarks || ''}">${c.policyRemarks || '-'}</td>
       <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">${dash(c.caseOwner)}</td>
       <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">${dash(c.entity)}</td>
       <td class="px-4 py-1 whitespace-nowrap">
         ${hasPolicy ? `<button type="button" class="update-status-btn renewal-update-status-btn" data-id="${c.id}" data-type="insurance" title="${stale ? 'Date of Issue, Date of Expiry and Days Left to Expiry have not been updated since this renewal was marked Completed' : ''}">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
           Update Status
-        </button>` : '<span class="text-[var(--muted)]">—</span>'}
+        </button>` : '<span class="text-[var(--muted)]">-</span>'}
       </td>
     </tr>`;
   }).join('');
