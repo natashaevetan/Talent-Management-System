@@ -2341,11 +2341,11 @@ const profileInfoModal = document.getElementById('profileInfoModal');
    so the UI never promises acceptance the backend would reject. */
 function evaluatePassword(pw){
   return {
-    length: pw.length >= 8,
+    length: pw.length >= 8 && pw.length <= 18,
     lower: /[a-z]/.test(pw),
     upper: /[A-Z]/.test(pw),
-    number: /[0-9]/.test(pw),
-    special: /[^A-Za-z0-9]/.test(pw),
+    numberOrSpecial: /[0-9]/.test(pw) || /[^A-Za-z0-9\s]/.test(pw),
+    noSpaceOrUnicode: !/[^\x21-\x7E]/.test(pw),
   };
 }
 function passwordStrength(rules){

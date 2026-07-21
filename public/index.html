@@ -2425,11 +2425,11 @@
         <div id="cp_strengthLabel" class="text-xs font-medium mt-1" style="color:var(--muted)">&nbsp;</div>
       </div>
       <ul id="cp_criteria" class="text-xs space-y-1">
-        <li data-rule="length" class="flex items-center gap-1.5" style="color:var(--muted)">○ At least 8 characters</li>
+        <li data-rule="length" class="flex items-center gap-1.5" style="color:var(--muted)">○ 8–18 characters</li>
         <li data-rule="lower" class="flex items-center gap-1.5" style="color:var(--muted)">○ One lowercase letter</li>
         <li data-rule="upper" class="flex items-center gap-1.5" style="color:var(--muted)">○ One uppercase letter</li>
-        <li data-rule="number" class="flex items-center gap-1.5" style="color:var(--muted)">○ One number</li>
-        <li data-rule="special" class="flex items-center gap-1.5" style="color:var(--muted)">○ One special character (e.g. ! @ # $ %)</li>
+        <li data-rule="numberOrSpecial" class="flex items-center gap-1.5" style="color:var(--muted)">○ One number or special character (e.g. ! @ # $ %)</li>
+        <li data-rule="noSpaceOrUnicode" class="flex items-center gap-1.5" style="color:var(--muted)">○ No spaces or unicode characters</li>
       </ul>
       <div class="pw-field-wrap">
         <input required id="cp_confirm" type="password" autocomplete="new-password" class="filter-input" placeholder="Confirm new password" />
