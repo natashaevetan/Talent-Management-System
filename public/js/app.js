@@ -3609,18 +3609,21 @@ function financeTalentFigures(c, monthOffset){
   const sdl = c.skillsDevelopmentLevy*factor;
   const wica = c.wica*factor;
   const insurance = c.medicalInsuranceCost*factor;
+  const otherStatutoryCosts = c.otherStatutoryCosts*factor;
   return {
-    salary, cpf, sdl, wica, insurance, levy,
+    salary, cpf, sdl, wica, insurance, levy, otherStatutoryCosts,
     serviceFee: c.serviceFee*factor,
     allowances: c.allowances*factor,
     claims: c.claimsReimbursements*factor,
     overtime: c.overtime*factor,
     noPayLeaveDeduction: c.noPayLeaveDeduction*factor,
-    otherStatutoryCosts: c.otherStatutoryCosts*factor,
     adminFee: getWorkPassAdminFee(c)*factor,
     // Distinct from `totalCost` below: a narrower core-cost subtotal for the Payroll & Cost
-    // table (excludes admin fee, service fee, allowances/claims/overtime/other statutory costs).
-    totalEmploymentCost: salary + levy + cpf + sdl + wica + insurance,
+    // table (excludes admin fee, service fee, allowances/claims/overtime). Other Statutory
+    // Costs is included because it's where imports stash the gap between a sheet's aggregate
+    // "Total Employment Cost" figure and what we can break out into salary/cpf/sdl/wica/etc —
+    // omitting it made imported totals silently collapse to just the basic salary.
+    totalEmploymentCost: salary + levy + cpf + sdl + wica + insurance + otherStatutoryCosts,
     totalCost: computeTotalPayrollCost(c)*factor,
     revenue: computeTalentRevenue(c)*revFactor,
   };
