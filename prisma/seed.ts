@@ -138,6 +138,8 @@ function randomPayrollFields(salary: number) {
     skillsDevelopmentLevy: randInt(5, 40),
     wica: randInt(5, 25),
     medicalInsuranceCost: randInt(40, 150),
+    levy: pick([0, 0, 265, 300, 450, 650]),
+    serviceFee: randInt(50, 300),
     allowances: pick([0, 0, 50, 100, 150, 200, 300]),
     claimsReimbursements: pick([0, 0, 20, 50, 80, 120, 200]),
     overtime: Math.random() < 0.3 ? randInt(50, 400) : 0,

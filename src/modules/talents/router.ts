@@ -548,7 +548,7 @@ talentsRouter.patch(
     const id = Number(req.params.id);
     const b = req.body as Record<string, unknown>;
     const data: Record<string, unknown> = {};
-    for (const key of ["salary", "cpf", "skillsDevelopmentLevy", "wica", "medicalInsuranceCost", "allowances", "claimsReimbursements", "overtime", "noPayLeaveDeduction", "otherStatutoryCosts"]) {
+    for (const key of ["salary", "cpf", "skillsDevelopmentLevy", "wica", "medicalInsuranceCost", "levy", "serviceFee", "allowances", "claimsReimbursements", "overtime", "noPayLeaveDeduction", "otherStatutoryCosts"]) {
       if (key in b) data[key] = Number(b[key]);
     }
     await prisma.payroll.update({ where: { talentId: id }, data });

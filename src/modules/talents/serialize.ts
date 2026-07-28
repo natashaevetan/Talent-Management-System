@@ -25,7 +25,7 @@ function yn(value: boolean | null | undefined): "Yes" | "No" {
 }
 
 const PAYROLL_FIELDS = [
-  "salary", "cpf", "skillsDevelopmentLevy", "wica", "medicalInsuranceCost",
+  "salary", "cpf", "skillsDevelopmentLevy", "wica", "medicalInsuranceCost", "levy", "serviceFee",
   "allowances", "claimsReimbursements", "overtime", "noPayLeaveDeduction", "otherStatutoryCosts",
 ] as const;
 const BILLING_FIELDS = [
@@ -135,6 +135,8 @@ export function serializeTalent(t: TalentWithRelations, canViewFinancials = true
     skillsDevelopmentLevy: t.payroll?.skillsDevelopmentLevy ?? 0,
     wica: t.payroll?.wica ?? 0,
     medicalInsuranceCost: t.payroll?.medicalInsuranceCost ?? 0,
+    levy: t.payroll?.levy ?? 0,
+    serviceFee: t.payroll?.serviceFee ?? 0,
     allowances: t.payroll?.allowances ?? 0,
     claimsReimbursements: t.payroll?.claimsReimbursements ?? 0,
     overtime: t.payroll?.overtime ?? 0,

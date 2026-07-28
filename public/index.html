@@ -1171,20 +1171,21 @@
           <span class="text-sm text-[var(--muted)]"><span id="financeResultCount" class="font-semibold text-[var(--text)]">…</span> talents listed</span>
         </div>
         <div class="overflow-x-auto">
-          <table class="w-full text-xs min-w-[1600px]">
+          <table class="w-full text-xs min-w-[1750px]">
             <thead>
               <tr class="text-left border-y border-[var(--border)] bg-[#FAFBFC] text-[11px] uppercase tracking-wide text-[var(--muted)]">
                 <th class="finance-sortable px-4 py-1.5 font-semibold" data-key="id"><span class="th-label">ID</span><span class="finance-sort-caret" data-arrow="id">▲</span></th>
                 <th class="finance-sortable px-4 py-1.5 font-semibold" data-key="name"><span class="th-label">Talent</span><span class="finance-sort-caret" data-arrow="name">▲</span></th>
                 <th class="finance-sortable px-4 py-1.5 font-semibold" data-key="totalCost"><span class="th-label">Total Cost (SGD)</span><span class="finance-sort-caret" data-arrow="totalCost">▲</span></th>
                 <th class="finance-sortable px-4 py-1.5 font-semibold" data-key="gp"><span class="th-label">Gross Profit</span><span class="finance-sort-caret" data-arrow="gp">▲</span></th>
-                <th class="finance-sortable px-4 py-1.5 font-semibold" data-key="salary"><span class="th-label">Salary</span><span class="finance-sort-caret" data-arrow="salary">▲</span></th>
+                <th class="finance-sortable px-4 py-1.5 font-semibold" data-key="salary"><span class="th-label">Basic Salary</span><span class="finance-sort-caret" data-arrow="salary">▲</span></th>
+                <th class="finance-sortable px-4 py-1.5 font-semibold" data-key="levy"><span class="th-label">Levy</span><span class="finance-sort-caret" data-arrow="levy">▲</span></th>
                 <th class="finance-sortable px-4 py-1.5 font-semibold" data-key="cpf"><span class="th-label">CPF</span><span class="finance-sort-caret" data-arrow="cpf">▲</span></th>
                 <th class="finance-sortable px-4 py-1.5 font-semibold" data-key="skillsDevelopmentLevy"><span class="th-label">SDL</span><span class="finance-sort-caret" data-arrow="skillsDevelopmentLevy">▲</span></th>
                 <th class="finance-sortable px-4 py-1.5 font-semibold" data-key="wica"><span class="th-label">WICA</span><span class="finance-sort-caret" data-arrow="wica">▲</span></th>
                 <th class="finance-sortable px-4 py-1.5 font-semibold" data-key="medicalInsuranceCost"><span class="th-label">Insurance</span><span class="finance-sort-caret" data-arrow="medicalInsuranceCost">▲</span></th>
-                <th class="finance-sortable px-4 py-1.5 font-semibold" data-key="allowances"><span class="th-label">Allowances</span><span class="finance-sort-caret" data-arrow="allowances">▲</span></th>
-                <th class="finance-sortable px-4 py-1.5 font-semibold" data-key="claimsReimbursements"><span class="th-label">Claims</span><span class="finance-sort-caret" data-arrow="claimsReimbursements">▲</span></th>
+                <th class="finance-sortable px-4 py-1.5 font-semibold" data-key="totalEmploymentCost"><span class="th-label">Total Employment Cost</span><span class="finance-sort-caret" data-arrow="totalEmploymentCost">▲</span></th>
+                <th class="finance-sortable px-4 py-1.5 font-semibold" data-key="serviceFee"><span class="th-label">Service Fee</span><span class="finance-sort-caret" data-arrow="serviceFee">▲</span></th>
                 <th class="finance-sortable px-4 py-1.5 font-semibold" data-key="adminFee"><span class="th-label">Work Pass Admin Fee</span><span class="finance-sort-caret" data-arrow="adminFee">▲</span></th>
               </tr>
             </thead>
@@ -2324,6 +2325,16 @@
       <div>
         <label class="field-label">Medical Insurance (S$)</label>
         <input id="pe_medicalInsuranceCost" type="number" min="0" step="1" class="filter-input" />
+      </div>
+    </div>
+    <div class="grid grid-cols-2 gap-4">
+      <div>
+        <label class="field-label">Levy (S$)</label>
+        <input id="pe_levy" type="number" min="0" step="1" class="filter-input" />
+      </div>
+      <div>
+        <label class="field-label">Service Fee (S$)</label>
+        <input id="pe_serviceFee" type="number" min="0" step="1" class="filter-input" />
       </div>
     </div>
     <div class="grid grid-cols-2 gap-4">

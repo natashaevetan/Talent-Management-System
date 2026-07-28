@@ -3572,13 +3572,14 @@ function initFinanceFilters(){
       { label: 'Name', value: c=>c.name },
       { label: 'Total Cost', value: c=>Math.round(lastFinanceFigures.get(c.id).totalCost) },
       { label: 'Gross Profit', value: c=>Math.round(lastFinanceFigures.get(c.id).revenue - lastFinanceFigures.get(c.id).totalCost) },
-      { label: 'Salary', value: c=>Math.round(lastFinanceFigures.get(c.id).salary) },
+      { label: 'Basic Salary', value: c=>Math.round(lastFinanceFigures.get(c.id).salary) },
+      { label: 'Levy', value: c=>Math.round(lastFinanceFigures.get(c.id).levy) },
       { label: 'CPF', value: c=>Math.round(lastFinanceFigures.get(c.id).cpf) },
       { label: 'SDL', value: c=>Math.round(lastFinanceFigures.get(c.id).sdl) },
       { label: 'WICA', value: c=>Math.round(lastFinanceFigures.get(c.id).wica) },
       { label: 'Insurance', value: c=>Math.round(lastFinanceFigures.get(c.id).insurance) },
-      { label: 'Allowances', value: c=>Math.round(lastFinanceFigures.get(c.id).allowances) },
-      { label: 'Claims', value: c=>Math.round(lastFinanceFigures.get(c.id).claims) },
+      { label: 'Total Employment Cost', value: c=>Math.round(lastFinanceFigures.get(c.id).totalEmploymentCost) },
+      { label: 'Service Fee', value: c=>Math.round(lastFinanceFigures.get(c.id).serviceFee) },
       { label: 'Work Pass Admin Fee', value: c=>Math.round(lastFinanceFigures.get(c.id).adminFee) },
     ], lastFinanceRows, format);
   }
@@ -3599,18 +3600,24 @@ function updateFinanceSortArrows(){
 function financeTalentFigures(c, monthOffset){
   const factor = seededVariance(c.id, monthOffset);
   const revFactor = seededVariance(c.id + 100000, monthOffset);
+  const salary = c.salary*factor;
+  const levy = c.levy*factor;
+  const cpf = c.cpf*factor;
+  const sdl = c.skillsDevelopmentLevy*factor;
+  const wica = c.wica*factor;
+  const insurance = c.medicalInsuranceCost*factor;
   return {
-    salary: c.salary*factor,
-    cpf: c.cpf*factor,
-    sdl: c.skillsDevelopmentLevy*factor,
-    wica: c.wica*factor,
-    insurance: c.medicalInsuranceCost*factor,
+    salary, cpf, sdl, wica, insurance, levy,
+    serviceFee: c.serviceFee*factor,
     allowances: c.allowances*factor,
     claims: c.claimsReimbursements*factor,
     overtime: c.overtime*factor,
     noPayLeaveDeduction: c.noPayLeaveDeduction*factor,
     otherStatutoryCosts: c.otherStatutoryCosts*factor,
     adminFee: getWorkPassAdminFee(c)*factor,
+    // Distinct from `totalCost` below: a narrower core-cost subtotal for the Payroll & Cost
+    // table (excludes admin fee, service fee, allowances/claims/overtime/other statutory costs).
+    totalEmploymentCost: salary + levy + cpf + sdl + wica + insurance,
     totalCost: computeTotalPayrollCost(c)*factor,
     revenue: computeTalentRevenue(c)*revFactor,
   };
@@ -3703,7 +3710,7 @@ function renderFinance(){
 
   rows.sort((a,b)=>{
     let av, bv;
-    const computedKeys = { adminFee:'adminFee', totalCost:'totalCost', revenue:'revenue', gp:null };
+    const computedKeys = { adminFee:'adminFee', totalCost:'totalCost', totalEmploymentCost:'totalEmploymentCost', revenue:'revenue', gp:null };
     if(financeSortKey === 'gp'){
       av = figuresByRow.get(a.id).revenue - figuresByRow.get(a.id).totalCost;
       bv = figuresByRow.get(b.id).revenue - figuresByRow.get(b.id).totalCost;
@@ -3752,12 +3759,13 @@ function renderFinance(){
       <td class="px-4 py-1 whitespace-nowrap font-semibold">${fmtMoney(Math.round(f.totalCost))}</td>
       <td class="px-4 py-1 whitespace-nowrap font-semibold" style="color:${gp>=0?'var(--green-text)':'var(--red-text)'}">${fmtMoney(Math.round(gp))}</td>
       <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(Math.round(f.salary))}</td>
+      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(Math.round(f.levy))}</td>
       <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(Math.round(f.cpf))}</td>
       <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(Math.round(f.sdl))}</td>
       <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(Math.round(f.wica))}</td>
       <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(Math.round(f.insurance))}</td>
-      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(Math.round(f.allowances))}</td>
-      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(Math.round(f.claims))}</td>
+      <td class="px-4 py-1 whitespace-nowrap font-semibold">${fmtMoney(Math.round(f.totalEmploymentCost))}</td>
+      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(Math.round(f.serviceFee))}</td>
       <td class="px-4 py-1 whitespace-nowrap">
         <div>${fmtMoney(Math.round(f.adminFee))}</div>
         <div class="text-[10px] text-[var(--muted)]">${c.workPassType} · ${c.passStatus}</div>
@@ -3958,6 +3966,8 @@ function renderPayrollView(c){
     dlRow("Skills Development Levy", fmtMoney(c.skillsDevelopmentLevy)),
     dlRow("WICA", fmtMoney(c.wica)),
     dlRow("Medical Insurance", fmtMoney(c.medicalInsuranceCost)),
+    dlRow("Levy", fmtMoney(c.levy)),
+    dlRow("Service Fee", fmtMoney(c.serviceFee)),
     dlRow("Allowances", fmtMoney(c.allowances)),
     dlRow("Claims / Reimbursements", fmtMoney(c.claimsReimbursements)),
     dlRow("Overtime", c.overtime ? fmtMoney(c.overtime) : "N/A"),
@@ -3981,6 +3991,8 @@ function showPayrollEditForm(c){
   document.getElementById('pe_skillsDevelopmentLevy').value = c.skillsDevelopmentLevy;
   document.getElementById('pe_wica').value = c.wica;
   document.getElementById('pe_medicalInsuranceCost').value = c.medicalInsuranceCost;
+  document.getElementById('pe_levy').value = c.levy;
+  document.getElementById('pe_serviceFee').value = c.serviceFee;
   document.getElementById('pe_allowances').value = c.allowances;
   document.getElementById('pe_claimsReimbursements').value = c.claimsReimbursements;
   document.getElementById('pe_overtime').value = c.overtime;
@@ -4026,6 +4038,8 @@ payrollEditForm.addEventListener('submit', async e=>{
     skillsDevelopmentLevy: Number(document.getElementById('pe_skillsDevelopmentLevy').value),
     wica: Number(document.getElementById('pe_wica').value),
     medicalInsuranceCost: Number(document.getElementById('pe_medicalInsuranceCost').value),
+    levy: Number(document.getElementById('pe_levy').value),
+    serviceFee: Number(document.getElementById('pe_serviceFee').value),
     allowances: Number(document.getElementById('pe_allowances').value),
     claimsReimbursements: Number(document.getElementById('pe_claimsReimbursements').value),
     overtime: Number(document.getElementById('pe_overtime').value),

@@ -227,6 +227,8 @@ model Payroll {
   skillsDevelopmentLevy Float @default(0)
   wica                  Float @default(0)
   medicalInsuranceCost  Float @default(0)
+  levy                  Float @default(0) // Foreign Worker Levy — distinct from skillsDevelopmentLevy (SDL) above
+  serviceFee            Float @default(0)
   allowances            Float @default(0)
   claimsReimbursements  Float @default(0)
   overtime              Float @default(0)
