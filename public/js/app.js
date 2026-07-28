@@ -3561,7 +3561,7 @@ function initFinanceFilters(){
   });
   function downloadFinanceList(format){
     exportRowsToExcel('finance.xlsx', [
-      { label: 'Name', value: c=>c.name },
+      { label: 'Talent Name', value: c=>c.name },
       { label: 'Basic Salary', value: c=>Math.round(lastFinanceFigures.get(c.id).salary) },
       { label: 'Levy', value: c=>Math.round(lastFinanceFigures.get(c.id).levy) },
       { label: 'CPF', value: c=>Math.round(lastFinanceFigures.get(c.id).cpf) },
@@ -3808,7 +3808,7 @@ function initBillingFilters(){
   });
   function downloadBillingList(format){
     exportRowsToExcel('talent-billing.xlsx', [
-      { label: 'Name', value: c=>c.name },
+      { label: 'Talent Name', value: c=>c.name },
       { label: 'Client / Project', value: c=>`${c.client} - ${dash(c.projectType)}` },
       { label: 'Charge Rate', value: c=>c.chargeRate },
       { label: 'Invoice Number', value: c=>c.talentInvoiceNumber },
@@ -4091,7 +4091,7 @@ function initOperationsFilters(){
   });
   function downloadOperationsList(format){
     exportRowsToExcel('leave-timesheet.xlsx', [
-      { label: 'Name', value: c=>c.name },
+      { label: 'Talent Name', value: c=>c.name },
       { label: 'Client', value: c=>c.client },
       { label: 'Annual Leave Balance', value: c=>c.annualLeaveBalance },
       { label: 'Sick Leave Balance', value: c=>c.sickLeaveBalance },
@@ -6431,7 +6431,7 @@ function initOffboardingFilters(){
   });
   function downloadOffboardingList(format){
     exportRowsToExcel('offboarding.xlsx', [
-      { label: 'Name', value: c=>c.name },
+      { label: 'Talent Name', value: c=>c.name },
       { label: 'Client', value: c=>c.client },
       { label: 'Exit Status', value: c=>c.exitStatus },
       { label: 'Last Working Day', value: c=>xlDate(c.lastWorkingDay) },
