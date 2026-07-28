@@ -157,7 +157,6 @@ authRouter.post(
     req.session.regenerate((err) => {
       if (err) throw err;
       req.session.userId = user.id;
-      req.session.userRole = user.role;
       res.json({ id: user.id, email: user.email, name: user.name, role: user.role });
     });
   })

@@ -3,15 +3,10 @@ import { prisma } from "../../lib/prisma";
 import { asyncHandler } from "../../middleware/errorHandler";
 import { requireAuth } from "../../middleware/requireAuth";
 import { serializeClient, clientInclude } from "./serialize";
-import { getPermissionSettings, canViewFinancials } from "../../lib/permissions";
+import { canViewFinancialsForRequest } from "../../lib/permissions";
 
 export const clientsRouter = Router();
 clientsRouter.use(requireAuth);
-
-async function canViewFinancialsForRequest(req: import("express").Request): Promise<boolean> {
-  const settings = await getPermissionSettings();
-  return canViewFinancials(req.session.userRole, settings);
-}
 
 async function reserializeByName(name: string, req: import("express").Request) {
   const client = await prisma.client.findUniqueOrThrow({ where: { name }, include: clientInclude });

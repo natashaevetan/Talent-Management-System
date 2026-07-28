@@ -6,16 +6,11 @@ import { serializeTalent, talentInclude } from "./serialize";
 import { toJson } from "../../lib/json";
 import { upsertClientByName, upsertProjectTypeByName, upsertLegalEntityByName, upsertRecruiterByName } from "../../lib/lookups";
 import { nextRenewalSeq, isExpiryWithinRenewalWindow } from "../../lib/renewalRules";
-import { getPermissionSettings, canViewFinancials } from "../../lib/permissions";
+import { canViewFinancialsForRequest } from "../../lib/permissions";
 import { isCpfEligible } from "../../lib/computed";
 
 export const talentsRouter = Router();
 talentsRouter.use(requireAuth);
-
-async function canViewFinancialsForRequest(req: import("express").Request): Promise<boolean> {
-  const settings = await getPermissionSettings();
-  return canViewFinancials(req.session.userRole, settings);
-}
 
 talentsRouter.get(
   "/",

@@ -5,7 +5,7 @@ import { requireAuth } from "../../middleware/requireAuth";
 import { daysLeft, totalEmployerCost, talentRevenue } from "../../lib/computed";
 import { RENEWAL_THRESHOLDS } from "../../config/businessRules";
 import { talentInclude } from "../talents/serialize";
-import { getPermissionSettings, canViewFinancials } from "../../lib/permissions";
+import { canViewFinancialsForRequest } from "../../lib/permissions";
 
 export const dashboardRouter = Router();
 dashboardRouter.use(requireAuth);
@@ -47,8 +47,7 @@ dashboardRouter.get(
       prisma.leaveTimesheet.count({ where: { timesheetSubmitted: false } }),
     ]);
 
-    const settings = await getPermissionSettings();
-    const canViewFin = canViewFinancials(req.session.userRole, settings);
+    const canViewFin = await canViewFinancialsForRequest(req);
 
     res.json({
       totalActiveTalents: talents.length - pendingStart - expiredContracts,
