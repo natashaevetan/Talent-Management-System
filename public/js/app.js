@@ -1151,12 +1151,31 @@ const IMPORT_NUMBER_KEYS = new Set(['basicSalary', 'levy', 'medicalInsuranceCost
 // CSV cells are always plain text, so a currency-formatted number ("S$8,000.00") reads back
 // as a string that plain Number() can't parse (returns NaN, which then serializes to null
 // and silently defaults to 0 server-side). Strip everything except digits/./- before parsing.
+// Accounting-style negatives in parentheses ("(500.00)") are handled explicitly since a plain
+// character-strip would silently drop the sign and turn a negative into a positive.
 function parseImportedNumber(val){
   if(typeof val === 'number') return val;
   if(val === null || val === undefined) return NaN;
-  const cleaned = String(val).trim().replace(/[^0-9.\-]/g, '');
-  return cleaned === '' ? NaN : Number(cleaned);
+  let s = String(val).trim();
+  let negative = false;
+  if(/^\(.*\)$/.test(s)){ negative = true; s = s.slice(1, -1); }
+  const cleaned = s.replace(/[^0-9.\-]/g, '');
+  if(cleaned === '') return NaN;
+  const n = Number(cleaned);
+  return isNaN(n) ? NaN : (negative ? -Math.abs(n) : n);
 }
+// A handful of headers vary in the wild in ways an exact (normalized) match can't anticipate —
+// e.g. WICA's insurance-tier percentage suffix differs by talent ("WICA (1%)", "WICA (2%)",
+// "WICA(3%)"...). Tried only for keys that didn't already get an exact match, so it can never
+// override a correct one — just fills a gap the fixed header map would otherwise miss.
+const IMPORT_HEADER_FALLBACKS = [
+  { key: 'wica', test: h => /^wica\b/.test(h) },
+];
+// Sheets routinely use "NA"/"-" etc. to intentionally mean "not applicable" (e.g. an EP
+// holder genuinely has no Levy) — those shouldn't be flagged as a parse problem. Anything
+// else unparseable (a typo, "TBD", "Pending"...) still should be, since it's real numeric
+// data that failed to come through rather than a deliberate non-applicability marker.
+const IMPORT_BLANK_MARKERS = new Set(['na', 'n/a', 'n.a.', 'none', 'nil', '-', '--']);
 
 // Workbooks sometimes have more than one sheet (e.g. a small subset on Sheet1 and the real,
 // comprehensive tracking data on Sheet2) — picking SheetNames[0] blindly can silently import
@@ -1188,12 +1207,28 @@ function parseImportWorkbook(workbook){
     const idx = headerRow.indexOf(header);
     if(idx >= 0 && !(key in colIndexByKey)) colIndexByKey[key] = idx;
   });
+  IMPORT_HEADER_FALLBACKS.forEach(({key, test})=>{
+    if(key in colIndexByKey) return;
+    const idx = headerRow.findIndex(test);
+    if(idx >= 0) colIndexByKey[key] = idx;
+  });
   if(colIndexByKey.name === undefined){
     throw new Error(`Couldn't find a "Name" column. Found headers: ${raw[0].filter(Boolean).join(', ')}`);
   }
 
+  // Any header in the sheet we didn't map to anything — surfaced so a renamed or unanticipated
+  // column (a real number silently going unimported) is visible before Import, not discovered
+  // after the fact.
+  const matchedIndexes = new Set(Object.values(colIndexByKey));
+  const unrecognizedHeaders = raw[0]
+    .map((h, idx) => ({ text: (h ?? '').toString().trim(), idx }))
+    .filter(({text, idx}) => text && !matchedIndexes.has(idx))
+    .map(({text}) => text);
+
   const rows = [];
   const skippedPreview = [];
+  const parseWarnings = [];
+  const reconciliationWarnings = [];
   for(let i = 1; i < raw.length; i++){
     const r = raw[i];
     if(!r) continue;
@@ -1221,12 +1256,29 @@ function parseImportWorkbook(workbook){
       else if(IMPORT_NUMBER_KEYS.has(key)){
         const n = parseImportedNumber(val);
         if(!isNaN(n)) row[key] = n;
+        // A cell that couldn't be parsed as a number would otherwise silently default to 0
+        // server-side — flag it, unless it's a deliberate "not applicable" marker rather than
+        // actual numeric data that failed to come through.
+        else if(!IMPORT_BLANK_MARKERS.has(String(val).trim().toLowerCase())){
+          parseWarnings.push({ row: i + 1, name, field: key, rawValue: String(val) });
+        }
       }
       else row[key] = String(val).trim();
     });
+
+    // If the sheet states an aggregate Total Employment Cost, sanity-check it against what we
+    // can break out. Catches a mis-mapped or missed numeric column before its value silently
+    // vanishes into the leftover "Other Statutory Costs" bucket (which floors at zero).
+    if(row.totalEmploymentCost !== undefined){
+      const breakdown = (row.basicSalary||0) + (row.levy||0) + (row.skillsDevelopmentLevy||0) + (row.wica||0) + (row.medicalInsuranceCost||0);
+      if(breakdown - row.totalEmploymentCost > 0.01){
+        reconciliationWarnings.push({ row: i + 1, name, breakdown, totalEmploymentCost: row.totalEmploymentCost });
+      }
+    }
+
     rows.push(row);
   }
-  return { rows, skippedPreview };
+  return { rows, skippedPreview, unrecognizedHeaders, parseWarnings, reconciliationWarnings };
 }
 
 function readImportFile(file){
@@ -1293,12 +1345,21 @@ document.getElementById('importFileInput').addEventListener('change', async (e)=
     return;
   }
   try{
-    const { rows, skippedPreview } = await readImportFile(file);
+    const { rows, skippedPreview, unrecognizedHeaders, parseWarnings, reconciliationWarnings } = await readImportFile(file);
     importParsedRows = rows;
     const skippedHtml = skippedPreview.length
       ? `<div class="text-[var(--muted)] mt-1">Skipped (insufficient data): ${skippedPreview.map(s=>`row ${s.row} "${s.name}"`).join(', ')}</div>`
       : '';
-    summaryEl.innerHTML = `<div><span class="font-semibold">${rows.length}</span> row${rows.length===1?'':'s'} ready to import.</div>${skippedHtml}`;
+    const unrecognizedHtml = unrecognizedHeaders && unrecognizedHeaders.length
+      ? `<div class="text-[var(--muted)] mt-1">Columns not mapped to a field (not imported — check nothing important is missing): ${unrecognizedHeaders.join(', ')}</div>`
+      : '';
+    const parseWarningsHtml = parseWarnings && parseWarnings.length
+      ? `<div class="mt-1" style="color:var(--red-text)">⚠ Couldn't read as a number, skipped: ${parseWarnings.map(w=>`row ${w.row} "${w.name}" ${w.field} = "${w.rawValue}"`).join('; ')}</div>`
+      : '';
+    const reconciliationHtml = reconciliationWarnings && reconciliationWarnings.length
+      ? `<div class="mt-1" style="color:var(--red-text)">⚠ Numbers don't add up to the sheet's Total Employment Cost (check for a mis-mapped or missing column): ${reconciliationWarnings.map(w=>`"${w.name}" breakdown ${fmtMoney(w.breakdown)} > sheet total ${fmtMoney(w.totalEmploymentCost)}`).join('; ')}</div>`
+      : '';
+    summaryEl.innerHTML = `<div><span class="font-semibold">${rows.length}</span> row${rows.length===1?'':'s'} ready to import.</div>${skippedHtml}${unrecognizedHtml}${parseWarningsHtml}${reconciliationHtml}`;
     previewEl.classList.remove('hidden');
   }catch(err){
     importParsedRows = null;
