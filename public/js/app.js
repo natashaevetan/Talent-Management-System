@@ -819,7 +819,9 @@ function renderStats(){
       renderStats();
     });
   });
-  document.getElementById('alertBadge').textContent = approachingExpiries;
+  const alertBadgeEl = document.getElementById('alertBadge');
+  alertBadgeEl.textContent = approachingExpiries;
+  alertBadgeEl.style.display = approachingExpiries > 0 ? '' : 'none';
 }
 
 /* ---------- Talents table state ---------- */
@@ -2266,7 +2268,7 @@ function renderNotifications(){
     + insuranceExpired.length + lastWorkingDaySoon.length + passCancellationPending.length;
 
   if(totalCount === 0){
-    list.innerHTML = `<div class="px-4 py-6 text-sm text-[var(--muted)] text-center">No urgent alerts.</div>`;
+    list.innerHTML = `<div class="px-4 py-6 text-sm text-[var(--muted)] text-center">There are no urgent tasks for you today.</div>`;
     return;
   }
 
