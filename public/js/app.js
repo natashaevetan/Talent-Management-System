@@ -1118,7 +1118,12 @@ const IMPORT_HEADER_MAP = {
   name: 'name',
   position: 'position',
   'basic salary': 'basicSalary',
+  levy: 'levy',
+  'insurance cost': 'medicalInsuranceCost',
+  sdl: 'skillsDevelopmentLevy',
+  'wica (1%)': 'wica',
   'total employment cost': 'totalEmploymentCost',
+  'service fee': 'serviceFee',
   'monthly charge rate': 'monthlyChargeRate',
   'fin no.': 'finNo',
   'type of pass': 'typeOfPass',
@@ -1135,7 +1140,7 @@ const IMPORT_HEADER_MAP = {
   owner: 'owner',
 };
 const IMPORT_DATE_KEYS = new Set(['workPassIssuanceDate', 'workPassExpiryDate', 'contractStartDate', 'contractEndDate']);
-const IMPORT_NUMBER_KEYS = new Set(['basicSalary', 'totalEmploymentCost', 'monthlyChargeRate']);
+const IMPORT_NUMBER_KEYS = new Set(['basicSalary', 'levy', 'medicalInsuranceCost', 'skillsDevelopmentLevy', 'wica', 'totalEmploymentCost', 'serviceFee', 'monthlyChargeRate']);
 // CSV cells are always plain text, so a currency-formatted number ("S$8,000.00") reads back
 // as a string that plain Number() can't parse (returns NaN, which then serializes to null
 // and silently defaults to 0 server-side). Strip everything except digits/./- before parsing.
@@ -1146,8 +1151,26 @@ function parseImportedNumber(val){
   return cleaned === '' ? NaN : Number(cleaned);
 }
 
+// Workbooks sometimes have more than one sheet (e.g. a small subset on Sheet1 and the real,
+// comprehensive tracking data on Sheet2) — picking SheetNames[0] blindly can silently import
+// from the wrong one. Score each sheet by how many of its headers we actually recognize and
+// use the best match instead.
+function pickImportSheetName(workbook){
+  const recognizedHeaders = new Set(Object.keys(IMPORT_HEADER_MAP));
+  let best = workbook.SheetNames[0];
+  let bestScore = -1;
+  for(const name of workbook.SheetNames){
+    const raw = XLSX.utils.sheet_to_json(workbook.Sheets[name], { header: 1, defval: null });
+    if(!raw.length || !raw[0]) continue;
+    const headerRow = raw[0].map(h => (h ?? '').toString().trim().toLowerCase());
+    const score = headerRow.filter(h => recognizedHeaders.has(h)).length;
+    if(score > bestScore){ bestScore = score; best = name; }
+  }
+  return best;
+}
+
 function parseImportWorkbook(workbook){
-  const sheetName = workbook.SheetNames[0];
+  const sheetName = pickImportSheetName(workbook);
   const ws = workbook.Sheets[sheetName];
   const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
   if(!raw.length) throw new Error("The file appears to be empty.");

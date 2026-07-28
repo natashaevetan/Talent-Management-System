@@ -129,7 +129,12 @@ interface ImportRow {
   name?: string;
   position?: string;
   basicSalary?: number;
+  levy?: number;
+  medicalInsuranceCost?: number;
+  skillsDevelopmentLevy?: number;
+  wica?: number;
   totalEmploymentCost?: number;
+  serviceFee?: number;
   monthlyChargeRate?: number;
   finNo?: string;
   typeOfPass?: string;
@@ -188,8 +193,17 @@ talentsRouter.post(
 
       const salary = Number(r.basicSalary) || 0;
       const cpf = isCpfEligible(passTypeRaw) ? Math.round(salary * 0.17) : 0;
+      const levy = Number(r.levy) || 0;
+      const skillsDevelopmentLevy = Number(r.skillsDevelopmentLevy) || 0;
+      const wica = Number(r.wica) || 0;
+      const medicalInsuranceCost = Number(r.medicalInsuranceCost) || 0;
+      const serviceFee = Number(r.serviceFee) || 0;
       const totalCost = r.totalEmploymentCost != null ? Number(r.totalEmploymentCost) : null;
-      const otherStatutoryCosts = totalCost !== null ? Math.max(0, Math.round(totalCost - salary - cpf)) : 0;
+      // Whatever's left after crediting every cost the sheet broke out explicitly -- a safety
+      // net for sheets that only give an aggregate total without a full breakdown.
+      const otherStatutoryCosts = totalCost !== null
+        ? Math.max(0, Math.round(totalCost - salary - cpf - levy - skillsDevelopmentLevy - wica - medicalInsuranceCost))
+        : 0;
       const chargeRate = Number(r.monthlyChargeRate) || 0;
 
       const poQuotationParts: string[] = [];
@@ -217,7 +231,12 @@ talentsRouter.post(
         if (Object.keys(contractUpdate).length) {
           await prisma.contract.update({ where: { talentId: existing.id }, data: contractUpdate });
         }
-        if (salary) await prisma.payroll.update({ where: { talentId: existing.id }, data: { salary, cpf, otherStatutoryCosts } });
+        if (salary) {
+          await prisma.payroll.update({
+            where: { talentId: existing.id },
+            data: { salary, cpf, levy, skillsDevelopmentLevy, wica, medicalInsuranceCost, serviceFee, otherStatutoryCosts },
+          });
+        }
         if (chargeRate) await prisma.talentBilling.update({ where: { talentId: existing.id }, data: { chargeRate } });
 
         if (hasWorkPass) {
@@ -253,7 +272,7 @@ talentsRouter.post(
             caseOwnerId: caseOwner?.id ?? null,
             contract: { create: { contractStart, contractEnd, contractStatus: "Signed", ...contractContactData } },
             insurance: { create: { policyType: "Not Required" } },
-            payroll: { create: { salary, cpf, otherStatutoryCosts } },
+            payroll: { create: { salary, cpf, levy, skillsDevelopmentLevy, wica, medicalInsuranceCost, serviceFee, otherStatutoryCosts } },
             leaveTimesheet: { create: {} },
             offboarding: { create: { lastWorkingDay: contractEnd } },
           },
