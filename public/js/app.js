@@ -406,6 +406,9 @@ function dash(v){ return (v===null || v===undefined || (typeof v==='string' && v
 
 function fmtDate(d){ return d ? d.toLocaleDateString('en-SG', { day:'2-digit', month:'short', year:'numeric' }) : '-'; }
 function fmtMoney(n){ return (n===null || n===undefined) ? '-' : "S$ " + n.toLocaleString('en-SG'); }
+// Same as fmtMoney but always shows cents — used where imported figures (e.g. SDL/WICA,
+// percentage-derived) carry real decimal precision that rounding to whole dollars would hide.
+function fmtMoney2dp(n){ return (n===null || n===undefined) ? '-' : "S$ " + n.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function fmtMoneyCompact(n){
   if(n===null || n===undefined) return '-';
   const abs = Math.abs(n);
@@ -3780,17 +3783,17 @@ function renderFinance(){
       <td class="px-4 py-1 font-medium whitespace-nowrap">
         <span class="finance-name-link cursor-pointer hover:underline hover:text-[var(--blue-dark)]" data-id="${c.id}">${c.name}</span>
       </td>
-      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(Math.round(f.salary))}</td>
-      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(Math.round(f.levy))}</td>
-      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(Math.round(f.cpf))}</td>
-      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(Math.round(f.sdl))}</td>
-      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(Math.round(f.wica))}</td>
-      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(Math.round(f.insurance))}</td>
-      <td class="px-4 py-1 whitespace-nowrap font-semibold">${fmtMoney(Math.round(f.totalEmploymentCost))}</td>
-      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(Math.round(f.serviceFee))}</td>
-      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(Math.round(f.revenue))}</td>
+      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney2dp(f.salary)}</td>
+      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney2dp(f.levy)}</td>
+      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney2dp(f.cpf)}</td>
+      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney2dp(f.sdl)}</td>
+      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney2dp(f.wica)}</td>
+      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney2dp(f.insurance)}</td>
+      <td class="px-4 py-1 whitespace-nowrap font-semibold">${fmtMoney2dp(f.totalEmploymentCost)}</td>
+      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney2dp(f.serviceFee)}</td>
+      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney2dp(f.revenue)}</td>
       <td class="px-4 py-1 whitespace-nowrap">
-        <div>${fmtMoney(Math.round(f.adminFee))}</div>
+        <div>${fmtMoney2dp(f.adminFee)}</div>
         <div class="text-[10px] text-[var(--muted)]">${c.workPassType} · ${c.passStatus}</div>
       </td>
     </tr>`;
