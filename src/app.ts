@@ -61,6 +61,15 @@ export function createApp() {
     })
   );
 
+  // Every /api/* response is per-session, dynamic data — Express's default weak ETag lets
+  // browsers conditionally-cache and revalidate these (a plain refresh sends If-None-Match
+  // for all of them), which can resurface a stale cached body under some browsers' fetch()
+  // 304-handling quirks. Disallow caching entirely so a refresh always gets a live 200.
+  app.use("/api", (_req, res, next) => {
+    res.set("Cache-Control", "no-store");
+    next();
+  });
+
   app.use("/api/auth", authRouter);
   app.use("/api/talents", talentsRouter);
   app.use("/api/lookups", lookupsRouter);
