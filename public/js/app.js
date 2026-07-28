@@ -405,10 +405,9 @@ function xlDate(d){ return d ? fmtDate(d) : ''; }
 function dash(v){ return (v===null || v===undefined || (typeof v==='string' && v.trim()==='')) ? '-' : v; }
 
 function fmtDate(d){ return d ? d.toLocaleDateString('en-SG', { day:'2-digit', month:'short', year:'numeric' }) : '-'; }
-function fmtMoney(n){ return (n===null || n===undefined) ? '-' : "S$ " + n.toLocaleString('en-SG'); }
-// Same as fmtMoney but always shows cents — used where imported figures (e.g. SDL/WICA,
-// percentage-derived) carry real decimal precision that rounding to whole dollars would hide.
-function fmtMoney2dp(n){ return (n===null || n===undefined) ? '-' : "S$ " + n.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+// Always shows cents — imported figures (e.g. SDL/WICA, percentage-derived) carry real
+// decimal precision that rounding to whole dollars would hide.
+function fmtMoney(n){ return (n===null || n===undefined) ? '-' : "S$ " + n.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function fmtMoneyCompact(n){
   if(n===null || n===undefined) return '-';
   const abs = Math.abs(n);
@@ -2022,19 +2021,19 @@ function renderTalentProfile(c){
   initProfileMonthFilter('profilePayrollMonthFilter');
   const payrollFigures = financeTalentFigures(c, profilePayrollMonthOffset);
   document.getElementById('profilePayrollBreakdown').innerHTML = [
-    dlRow("CPF", fmtMoney(Math.round(payrollFigures.cpf))),
-    dlRow("Skills Development Levy", fmtMoney(Math.round(payrollFigures.sdl))),
-    dlRow("WICA", fmtMoney(Math.round(payrollFigures.wica))),
-    dlRow("Medical Insurance Cost", fmtMoney(Math.round(payrollFigures.insurance))),
-    dlRow("Allowances", fmtMoney(Math.round(payrollFigures.allowances))),
-    dlRow("Claims / Reimbursements", fmtMoney(Math.round(payrollFigures.claims))),
-    dlRow("Overtime", fmtMoney(Math.round(payrollFigures.overtime))),
-    dlRow("No-Pay Leave Deduction", `-${fmtMoney(Math.round(payrollFigures.noPayLeaveDeduction))}`),
-    dlRow("Other Statutory Costs", fmtMoney(Math.round(payrollFigures.otherStatutoryCosts))),
-    dlRow("Work Pass Admin Fee", `${fmtMoney(Math.round(payrollFigures.adminFee))}<div class="text-[10px] text-[var(--muted)] font-normal">${c.workPassType} · ${c.passStatus}</div>`),
-    dlRow("Total Employer Cost (Est.)", `<span class="font-semibold">${fmtMoney(Math.round(payrollFigures.totalCost))}</span>`),
-    dlRow("Revenue Billed (Est. Monthly)", fmtMoney(Math.round(payrollFigures.revenue))),
-    dlRow("Gross Profit (Est.)", `<span class="font-semibold" style="color:${(payrollFigures.revenue-payrollFigures.totalCost)>=0?'var(--green-text)':'var(--red-text)'}">${fmtMoney(Math.round(payrollFigures.revenue-payrollFigures.totalCost))}</span>`),
+    dlRow("CPF", fmtMoney(payrollFigures.cpf)),
+    dlRow("Skills Development Levy", fmtMoney(payrollFigures.sdl)),
+    dlRow("WICA", fmtMoney(payrollFigures.wica)),
+    dlRow("Medical Insurance Cost", fmtMoney(payrollFigures.insurance)),
+    dlRow("Allowances", fmtMoney(payrollFigures.allowances)),
+    dlRow("Claims / Reimbursements", fmtMoney(payrollFigures.claims)),
+    dlRow("Overtime", fmtMoney(payrollFigures.overtime)),
+    dlRow("No-Pay Leave Deduction", `-${fmtMoney(payrollFigures.noPayLeaveDeduction)}`),
+    dlRow("Other Statutory Costs", fmtMoney(payrollFigures.otherStatutoryCosts)),
+    dlRow("Work Pass Admin Fee", `${fmtMoney(payrollFigures.adminFee)}<div class="text-[10px] text-[var(--muted)] font-normal">${c.workPassType} · ${c.passStatus}</div>`),
+    dlRow("Total Employer Cost (Est.)", `<span class="font-semibold">${fmtMoney(payrollFigures.totalCost)}</span>`),
+    dlRow("Revenue Billed (Est. Monthly)", fmtMoney(payrollFigures.revenue)),
+    dlRow("Gross Profit (Est.)", `<span class="font-semibold" style="color:${(payrollFigures.revenue-payrollFigures.totalCost)>=0?'var(--green-text)':'var(--red-text)'}">${fmtMoney(payrollFigures.revenue-payrollFigures.totalCost)}</span>`),
   ].join('');
   document.getElementById('profilePayrollMonthFilter').onchange = e=>{
     profilePayrollMonthOffset = Number(e.target.value);
@@ -2707,7 +2706,7 @@ function renderHomeGpDonut(){
     <div class="flex items-center justify-between text-sm mb-2.5 gap-3">
       <span class="flex items-center gap-2 min-w-0"><span class="w-2.5 h-2.5 rounded-full inline-block shrink-0" style="background:${colors[i%colors.length]}"></span><span class="truncate">${d.client}</span></span>
       <span class="flex items-baseline gap-2 shrink-0">
-        <span class="text-[var(--muted)] text-xs">${fmtMoney(Math.round(Math.max(d.gp,0)))}</span>
+        <span class="text-[var(--muted)] text-xs">${fmtMoney(Math.max(d.gp,0))}</span>
         <span class="font-semibold">${total ? Math.round((Math.max(d.gp,0)/total)*100) : 0}%</span>
       </span>
     </div>`).join('');
@@ -2762,9 +2761,9 @@ function renderGpBreakdownTable(){
   document.getElementById('gpBreakdownTableBody').innerHTML = rows.map(r=>`
     <tr class="border-b border-[var(--border)]">
       <td class="px-3 py-1.5">${r.client}</td>
-      <td class="px-3 py-1.5 text-right">${fmtMoney(Math.round(r.revenue))}</td>
-      <td class="px-3 py-1.5 text-right">${fmtMoney(Math.round(r.cost))}</td>
-      <td class="px-3 py-1.5 text-right font-medium" style="color:${r.gp>=0?'var(--green-text)':'var(--red-text)'}">${fmtMoney(Math.round(r.gp))}</td>
+      <td class="px-3 py-1.5 text-right">${fmtMoney(r.revenue)}</td>
+      <td class="px-3 py-1.5 text-right">${fmtMoney(r.cost)}</td>
+      <td class="px-3 py-1.5 text-right font-medium" style="color:${r.gp>=0?'var(--green-text)':'var(--red-text)'}">${fmtMoney(r.gp)}</td>
       <td class="px-3 py-1.5 text-right" style="color:${r.margin>=0?'var(--green-text)':'var(--red-text)'}">${r.margin.toFixed(1)}%</td>
     </tr>`).join('');
 
@@ -2774,9 +2773,9 @@ function renderGpBreakdownTable(){
   const totalMargin = totalRevenue ? (totalGp/totalRevenue*100) : 0;
   document.getElementById('gpBreakdownTotalRow').innerHTML = `
     <td class="px-3 py-2">Total (${rows.length} clients)</td>
-    <td class="px-3 py-2 text-right">${fmtMoney(Math.round(totalRevenue))}</td>
-    <td class="px-3 py-2 text-right">${fmtMoney(Math.round(totalCost))}</td>
-    <td class="px-3 py-2 text-right" style="color:${totalGp>=0?'var(--green-text)':'var(--red-text)'}">${fmtMoney(Math.round(totalGp))}</td>
+    <td class="px-3 py-2 text-right">${fmtMoney(totalRevenue)}</td>
+    <td class="px-3 py-2 text-right">${fmtMoney(totalCost)}</td>
+    <td class="px-3 py-2 text-right" style="color:${totalGp>=0?'var(--green-text)':'var(--red-text)'}">${fmtMoney(totalGp)}</td>
     <td class="px-3 py-2 text-right" style="color:${totalMargin>=0?'var(--green-text)':'var(--red-text)'}">${totalMargin.toFixed(1)}%</td>
   `;
 }
@@ -2832,11 +2831,11 @@ function renderHome(){
     homeCard("Pending PO", pendingPO, "var(--amber-text)", "analytics", homeTrend(homeKpiTrends.pendingPO, "vs last month")) +
     homeCard("Pending Timesheets", pendingTimesheets, "var(--amber-text)", "operations", homeTrend(homeKpiTrends.pendingTimesheets, "vs last month")) +
     homeCard("Pending Invoices", pendingInvoices, "var(--amber-text)", "analytics", homeTrend(homeKpiTrends.pendingInvoices, "vs last month")) +
-    homeCard("Monthly Revenue", fmtMoney(Math.round(monthlyRevenue)), "var(--text)", "finance", homeTrend(null, "vs last month")) +
-    homeCard("Monthly Cost", fmtMoney(Math.round(monthlyCost)), "var(--text)", "finance", homeTrend(null, "vs last month")) +
+    homeCard("Monthly Revenue", fmtMoney(monthlyRevenue), "var(--text)", "finance", homeTrend(null, "vs last month")) +
+    homeCard("Monthly Cost", fmtMoney(monthlyCost), "var(--text)", "finance", homeTrend(null, "vs last month")) +
     `<div class="rounded-lg px-4 py-3 cursor-pointer" style="background:var(--blue);" onclick="openGpBreakdownModal()">
       <div class="text-xs text-blue-100 mb-1" style="color:#DCEBFB;">Monthly GP</div>
-      <div class="text-xl font-bold text-white whitespace-nowrap">${fmtMoney(Math.round(monthlyGp))}</div>
+      <div class="text-xl font-bold text-white whitespace-nowrap">${fmtMoney(monthlyGp)}</div>
       <div class="text-[11px] mt-1" style="color:#DCEBFB;">${monthlyMargin.toFixed(1)}% Margin</div>
     </div>`;
 
@@ -3707,14 +3706,14 @@ function renderFinance(){
   const totalGp = totalRevenue - totalCost;
 
   document.getElementById('financeStatCards').innerHTML = [
-    {label:"Total Salary (SGD)", value:fmtMoney(Math.round(totalSalary)), highlight:false},
-    {label:"Total CPF (SGD)", value:fmtMoney(Math.round(totalCpf)), highlight:false},
-    {label:"Total SDL (SGD)", value:fmtMoney(Math.round(totalSdl)), highlight:false},
-    {label:"Total WICA (SGD)", value:fmtMoney(Math.round(totalWica)), highlight:false},
-    {label:"Total Insurance", value:fmtMoney(Math.round(totalInsurance)), highlight:false},
-    {label:"Total Work Pass Admin Fee", value:fmtMoney(Math.round(totalAdminFee)), highlight:false},
-    {label:"Total Cost (SGD)", value:fmtMoney(Math.round(totalCost)), highlight:"blue"},
-    {label:"Total Gross Profit (SGD)", value:fmtMoney(Math.round(totalGp)), highlight:"green"},
+    {label:"Total Salary (SGD)", value:fmtMoney(totalSalary), highlight:false},
+    {label:"Total CPF (SGD)", value:fmtMoney(totalCpf), highlight:false},
+    {label:"Total SDL (SGD)", value:fmtMoney(totalSdl), highlight:false},
+    {label:"Total WICA (SGD)", value:fmtMoney(totalWica), highlight:false},
+    {label:"Total Insurance", value:fmtMoney(totalInsurance), highlight:false},
+    {label:"Total Work Pass Admin Fee", value:fmtMoney(totalAdminFee), highlight:false},
+    {label:"Total Cost (SGD)", value:fmtMoney(totalCost), highlight:"blue"},
+    {label:"Total Gross Profit (SGD)", value:fmtMoney(totalGp), highlight:"green"},
   ].map(c=> c.highlight ? `
     <div class="stat-card ${c.highlight==='blue'?'stat-card-highlight':'stat-card-highlight-green'} rounded-lg px-4 py-3">
       <div class="text-xs stat-card-highlight-label mb-1">${c.label}</div>
@@ -3783,17 +3782,17 @@ function renderFinance(){
       <td class="px-4 py-1 font-medium whitespace-nowrap">
         <span class="finance-name-link cursor-pointer hover:underline hover:text-[var(--blue-dark)]" data-id="${c.id}">${c.name}</span>
       </td>
-      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney2dp(f.salary)}</td>
-      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney2dp(f.levy)}</td>
-      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney2dp(f.cpf)}</td>
-      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney2dp(f.sdl)}</td>
-      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney2dp(f.wica)}</td>
-      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney2dp(f.insurance)}</td>
-      <td class="px-4 py-1 whitespace-nowrap font-semibold">${fmtMoney2dp(f.totalEmploymentCost)}</td>
-      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney2dp(f.serviceFee)}</td>
-      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney2dp(f.revenue)}</td>
+      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(f.salary)}</td>
+      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(f.levy)}</td>
+      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(f.cpf)}</td>
+      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(f.sdl)}</td>
+      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(f.wica)}</td>
+      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(f.insurance)}</td>
+      <td class="px-4 py-1 whitespace-nowrap font-semibold">${fmtMoney(f.totalEmploymentCost)}</td>
+      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(f.serviceFee)}</td>
+      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(f.revenue)}</td>
       <td class="px-4 py-1 whitespace-nowrap">
-        <div>${fmtMoney2dp(f.adminFee)}</div>
+        <div>${fmtMoney(f.adminFee)}</div>
         <div class="text-[10px] text-[var(--muted)]">${c.workPassType} · ${c.passStatus}</div>
       </td>
     </tr>`;
@@ -3982,8 +3981,8 @@ function renderPayrollView(c){
   const contractMonths = Math.max(1, Math.round((c.contractEnd - c.contractStart) / (1000*60*60*24*30)));
   const totalProjectCost = totalMonthlyCost * contractMonths;
   const daysWorkedThisMonth = Math.min(30, Math.max(1, 30 + c.contractDaysLeft));
-  const finalSalaryOffboarding = Math.round((c.salary/30) * daysWorkedThisMonth);
-  const leaveEncashment = Math.round(c.annualLeaveBalance * (c.salary/30));
+  const finalSalaryOffboarding = (c.salary/30) * daysWorkedThisMonth;
+  const leaveEncashment = c.annualLeaveBalance * (c.salary/30);
 
   document.getElementById('payrollViewFields').innerHTML = [
     dlRow("Basic Salary (Monthly)", c.salary ? fmtMoney(c.salary) : '-'),
@@ -3998,9 +3997,9 @@ function renderPayrollView(c){
     dlRow("No-pay Leave Deduction", c.noPayLeaveDeduction ? fmtMoney(c.noPayLeaveDeduction) : "S$ 0"),
     dlRow("Other Statutory Costs", fmtMoney(c.otherStatutoryCosts)),
     `<div class="border-t border-[var(--border)] my-2"></div>`,
-    dlRow("Total Monthly Cost", `<span class="font-semibold">${fmtMoney(Math.round(totalMonthlyCost))}</span>`),
-    dlRow("Total Daily Cost", fmtMoney(Math.round(totalDailyCost))),
-    dlRow("Total Project Cost", fmtMoney(Math.round(totalProjectCost))),
+    dlRow("Total Monthly Cost", `<span class="font-semibold">${fmtMoney(totalMonthlyCost)}</span>`),
+    dlRow("Total Daily Cost", fmtMoney(totalDailyCost)),
+    dlRow("Total Project Cost", fmtMoney(totalProjectCost)),
     dlRow("Final Salary (Offboarding)", fmtMoney(finalSalaryOffboarding)),
     dlRow("Leave Encashment", fmtMoney(leaveEncashment)),
   ].join('');
@@ -4378,14 +4377,14 @@ leaveEditForm.addEventListener('submit', async e=>{
 
 /* ---------- MANAGEMENT ANALYTICS ---------- */
 const analyticsMetricDefs = [
-  { key:"monthlyRevenue", label:"Monthly Revenue", fmt:v=>fmtMoney(Math.round(v)), volatility:0.06 },
-  { key:"monthlyCost", label:"Monthly Cost", fmt:v=>fmtMoney(Math.round(v)), volatility:0.05 },
-  { key:"grossProfit", label:"Gross Profit", fmt:v=>fmtMoney(Math.round(v)), volatility:0.08 },
+  { key:"monthlyRevenue", label:"Monthly Revenue", fmt:v=>fmtMoney(v), volatility:0.06 },
+  { key:"monthlyCost", label:"Monthly Cost", fmt:v=>fmtMoney(v), volatility:0.05 },
+  { key:"grossProfit", label:"Gross Profit", fmt:v=>fmtMoney(v), volatility:0.08 },
   { key:"grossMargin", label:"Gross Margin %", fmt:v=>v.toFixed(1)+"%", volatility:0.03 },
-  { key:"workPassAdminFee", label:"Work Pass Admin Fee", fmt:v=>fmtMoney(Math.round(v)), volatility:0.02 },
-  { key:"projectRevenue", label:"Project Revenue", fmt:v=>fmtMoney(Math.round(v)), volatility:0.05 },
-  { key:"projectCost", label:"Project Cost", fmt:v=>fmtMoney(Math.round(v)), volatility:0.04 },
-  { key:"projectGp", label:"Project GP", fmt:v=>fmtMoney(Math.round(v)), volatility:0.07 },
+  { key:"workPassAdminFee", label:"Work Pass Admin Fee", fmt:v=>fmtMoney(v), volatility:0.02 },
+  { key:"projectRevenue", label:"Project Revenue", fmt:v=>fmtMoney(v), volatility:0.05 },
+  { key:"projectCost", label:"Project Cost", fmt:v=>fmtMoney(v), volatility:0.04 },
+  { key:"projectGp", label:"Project GP", fmt:v=>fmtMoney(v), volatility:0.07 },
 ];
 const HISTORY_MONTHS = 36;
 
@@ -4610,7 +4609,7 @@ function renderClients(){
     { key:"all", label:"Total Clients", value: clients.length, color:"var(--text)" },
     { key:"active", label:"Active Clients", value: activeCount, color:"var(--blue-dark)" },
     { key:"talents", label:"Total Talents", value: totalTalents, color:"var(--text)" },
-    { key:"gp", label:"Total Gross Profit", value: fmtMoney(Math.round(totalGp)), color: totalGp>=0 ? "var(--green-text)" : "var(--red-text)" },
+    { key:"gp", label:"Total Gross Profit", value: fmtMoney(totalGp), color: totalGp>=0 ? "var(--green-text)" : "var(--red-text)" },
   ].map(c=>{
     const active = (c.key==="active" && clientsStatusTerm.includes("Active"))
       || (c.key==="all" && clientsStatusTerm.length===0);
@@ -5951,10 +5950,10 @@ function renderAnalytics(){
   document.getElementById('analyticsOverviewStats').innerHTML = [
     { key:"clients", label:"Active Clients", value: clients.length, color:"var(--blue-dark)", clickable:true },
     { key:"talents", label:"Total Talents", value: totalTalents, color:"var(--text)", clickable:true },
-    { key:"revenue", label:"Total Monthly Revenue", value: fmtMoney(Math.round(totalRevenue)), color:"var(--text)", clickable:false },
-    { key:"gp", label:"Total Gross Profit", value: fmtMoney(Math.round(totalGp)), color: totalGp>=0 ? "var(--green-text)" : "var(--red-text)", clickable:false },
+    { key:"revenue", label:"Total Monthly Revenue", value: fmtMoney(totalRevenue), color:"var(--text)", clickable:false },
+    { key:"gp", label:"Total Gross Profit", value: fmtMoney(totalGp), color: totalGp>=0 ? "var(--green-text)" : "var(--red-text)", clickable:false },
     { key:"margin", label:"Overall GP Margin %", value: overallMargin.toFixed(1)+"%", color:"var(--amber-text)", clickable:false },
-    { key:"adminFee", label:"Total Work Pass Admin Fee", value: fmtMoney(Math.round(totalAdminFee)), color:"var(--text)", clickable:false },
+    { key:"adminFee", label:"Total Work Pass Admin Fee", value: fmtMoney(totalAdminFee), color:"var(--text)", clickable:false },
   ].map(c=>`
     <div class="stat-card ${c.clickable?'stat-card-clickable':''} rounded-lg px-4 py-3" ${c.clickable?`data-card="${c.key}"`:''}>
       <div class="text-xs text-[var(--muted)] mb-1">${c.label}</div>
@@ -5992,7 +5991,7 @@ function renderAnalytics(){
             <svg class="an-chevron w-5 h-5 transition-transform duration-150 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
             ${client}
             <span class="text-base text-[var(--muted)] font-normal">${m.count} talent${m.count===1?'':'s'}</span>
-            <span class="pill" style="background:${gpColor};color:${gpText}">GP ${fmtMoney(Math.round(m.grossProfit))}</span>
+            <span class="pill" style="background:${gpColor};color:${gpText}">GP ${fmtMoney(m.grossProfit)}</span>
           </span>
         </button>
         <div class="an-panel hidden border-t border-[var(--border)] px-6 py-4" id="an-panel-${safeId}">
@@ -6090,7 +6089,7 @@ function buildClientOpsIndicators(client){
       <div class="grid grid-cols-2 md:grid-cols-4 gap-2.5">
         ${opsIndicatorCard("Talents Ending Soon", f.talentsEndingSoon, f.talentsEndingSoon > 0)}
         ${opsIndicatorCard("Work Pass Expiring Soon", f.passExpirySoon, f.passExpirySoon > 0)}
-        ${opsIndicatorCard("Leave Liability", `${f.leaveLiabilityDays}d · ${fmtMoney(Math.round(f.leaveLiabilityCost))}`, false)}
+        ${opsIndicatorCard("Leave Liability", `${f.leaveLiabilityDays}d · ${fmtMoney(f.leaveLiabilityCost)}`, false)}
         ${opsIndicatorCard("Pending SOW", f.pendingSOW ? "Yes" : "No", f.pendingSOW)}
         ${opsIndicatorCard("Pending PO", f.pendingPO ? "Yes" : "No", f.pendingPO)}
         ${opsIndicatorCard("Pending Invoice", f.pendingInvoice ? "Yes" : "No", f.pendingInvoice)}
@@ -6421,10 +6420,10 @@ function showBillingEdit(client, safeId){
 /* ---------- OFFBOARDING ---------- */
 function computeFinalSalary(c){
   const daysWorkedThisMonth = Math.max(1, 30 + c.contractDaysLeft);
-  return Math.round((c.salary/30)*Math.min(30,daysWorkedThisMonth));
+  return (c.salary/30)*Math.min(30,daysWorkedThisMonth);
 }
 function computeLeaveEncashment(c){
-  return Math.round(c.annualLeaveBalance * (c.salary/30));
+  return c.annualLeaveBalance * (c.salary/30);
 }
 
 let offboardingSearchTerm = "";
