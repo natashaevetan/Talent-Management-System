@@ -3570,8 +3570,6 @@ function initFinanceFilters(){
     exportRowsToExcel('finance.xlsx', [
       { label: 'ID', value: c=>`C${String(c.id).padStart(6,'0')}` },
       { label: 'Name', value: c=>c.name },
-      { label: 'Total Cost', value: c=>Math.round(lastFinanceFigures.get(c.id).totalCost) },
-      { label: 'Gross Profit', value: c=>Math.round(lastFinanceFigures.get(c.id).revenue - lastFinanceFigures.get(c.id).totalCost) },
       { label: 'Basic Salary', value: c=>Math.round(lastFinanceFigures.get(c.id).salary) },
       { label: 'Levy', value: c=>Math.round(lastFinanceFigures.get(c.id).levy) },
       { label: 'CPF', value: c=>Math.round(lastFinanceFigures.get(c.id).cpf) },
@@ -3580,6 +3578,7 @@ function initFinanceFilters(){
       { label: 'Insurance', value: c=>Math.round(lastFinanceFigures.get(c.id).insurance) },
       { label: 'Total Employment Cost', value: c=>Math.round(lastFinanceFigures.get(c.id).totalEmploymentCost) },
       { label: 'Service Fee', value: c=>Math.round(lastFinanceFigures.get(c.id).serviceFee) },
+      { label: 'Monthly Charge Rate', value: c=>Math.round(lastFinanceFigures.get(c.id).revenue) },
       { label: 'Work Pass Admin Fee', value: c=>Math.round(lastFinanceFigures.get(c.id).adminFee) },
     ], lastFinanceRows, format);
   }
@@ -3710,11 +3709,8 @@ function renderFinance(){
 
   rows.sort((a,b)=>{
     let av, bv;
-    const computedKeys = { adminFee:'adminFee', totalCost:'totalCost', totalEmploymentCost:'totalEmploymentCost', revenue:'revenue', gp:null };
-    if(financeSortKey === 'gp'){
-      av = figuresByRow.get(a.id).revenue - figuresByRow.get(a.id).totalCost;
-      bv = figuresByRow.get(b.id).revenue - figuresByRow.get(b.id).totalCost;
-    } else if(computedKeys[financeSortKey]){
+    const computedKeys = { adminFee:'adminFee', totalEmploymentCost:'totalEmploymentCost', revenue:'revenue' };
+    if(computedKeys[financeSortKey]){
       av = figuresByRow.get(a.id)[computedKeys[financeSortKey]];
       bv = figuresByRow.get(b.id)[computedKeys[financeSortKey]];
     } else {
@@ -3749,15 +3745,12 @@ function renderFinance(){
 
   tbody.innerHTML = pageRows.map(c=>{
     const f = figuresByRow.get(c.id);
-    const gp = f.revenue - f.totalCost;
     return `
     <tr class="row-hover border-b border-[var(--border)]">
       <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">C${String(c.id).padStart(6,'0')}</td>
       <td class="px-4 py-1 font-medium whitespace-nowrap">
         <span class="finance-name-link cursor-pointer hover:underline hover:text-[var(--blue-dark)]" data-id="${c.id}">${c.name}</span>
       </td>
-      <td class="px-4 py-1 whitespace-nowrap font-semibold">${fmtMoney(Math.round(f.totalCost))}</td>
-      <td class="px-4 py-1 whitespace-nowrap font-semibold" style="color:${gp>=0?'var(--green-text)':'var(--red-text)'}">${fmtMoney(Math.round(gp))}</td>
       <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(Math.round(f.salary))}</td>
       <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(Math.round(f.levy))}</td>
       <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(Math.round(f.cpf))}</td>
@@ -3766,6 +3759,7 @@ function renderFinance(){
       <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(Math.round(f.insurance))}</td>
       <td class="px-4 py-1 whitespace-nowrap font-semibold">${fmtMoney(Math.round(f.totalEmploymentCost))}</td>
       <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(Math.round(f.serviceFee))}</td>
+      <td class="px-4 py-1 whitespace-nowrap">${fmtMoney(Math.round(f.revenue))}</td>
       <td class="px-4 py-1 whitespace-nowrap">
         <div>${fmtMoney(Math.round(f.adminFee))}</div>
         <div class="text-[10px] text-[var(--muted)]">${c.workPassType} · ${c.passStatus}</div>
