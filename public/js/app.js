@@ -1136,6 +1136,15 @@ const IMPORT_HEADER_MAP = {
 };
 const IMPORT_DATE_KEYS = new Set(['workPassIssuanceDate', 'workPassExpiryDate', 'contractStartDate', 'contractEndDate']);
 const IMPORT_NUMBER_KEYS = new Set(['basicSalary', 'totalEmploymentCost', 'monthlyChargeRate']);
+// CSV cells are always plain text, so a currency-formatted number ("S$8,000.00") reads back
+// as a string that plain Number() can't parse (returns NaN, which then serializes to null
+// and silently defaults to 0 server-side). Strip everything except digits/./- before parsing.
+function parseImportedNumber(val){
+  if(typeof val === 'number') return val;
+  if(val === null || val === undefined) return NaN;
+  const cleaned = String(val).trim().replace(/[^0-9.\-]/g, '');
+  return cleaned === '' ? NaN : Number(cleaned);
+}
 
 function parseImportWorkbook(workbook){
   const sheetName = workbook.SheetNames[0];
@@ -1179,7 +1188,10 @@ function parseImportWorkbook(workbook){
         const d = val instanceof Date ? val : new Date(val);
         if(!isNaN(d.getTime())) row[key] = d.toISOString();
       }
-      else if(IMPORT_NUMBER_KEYS.has(key)) row[key] = Number(val);
+      else if(IMPORT_NUMBER_KEYS.has(key)){
+        const n = parseImportedNumber(val);
+        if(!isNaN(n)) row[key] = n;
+      }
       else row[key] = String(val).trim();
     });
     rows.push(row);
