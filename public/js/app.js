@@ -893,7 +893,6 @@ function renderTable(){
 
       return `
         <tr class="row-hover border-b border-[var(--border)] ${rowClass}" data-row data-id="${c.id}">
-          <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">C${String(c.id).padStart(6,'0')}</td>
           <td class="px-4 py-1 font-medium name-cell whitespace-nowrap">
             <div class="flex items-center gap-1.5">
               ${c.alert ? `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--red-dot)" stroke-width="2.5" class="shrink-0"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>` : ''}
@@ -1036,7 +1035,6 @@ document.getElementById('downloadLink').addEventListener('click', e=>{ e.prevent
 const exportModalOverlay = document.getElementById('exportModalOverlay');
 const exportModal = document.getElementById('exportModal');
 const exportColumns = [
-  {key:'id', label:'ID', get:c=>`C${String(c.id).padStart(6,'0')}`},
   {key:'name', label:'Talent Name', get:c=>c.name},
   {key:'client', label:'Client', get:c=>c.client},
   {key:'projectType', label:'Project Type', get:c=>c.projectType},
@@ -2852,14 +2850,13 @@ function renderHomeExpiryTable(approaching){
 
   document.getElementById('homeExpiryList').innerHTML = rows.length ? rows.map(c=>`
     <tr class="row-hover border-b border-[var(--border)]">
-      <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">C${String(c.id).padStart(6,'0')}</td>
       <td class="px-4 py-1 font-medium whitespace-nowrap">
         <span class="home-expiry-name-link cursor-pointer hover:underline hover:text-[var(--blue-dark)]" data-id="${c.id}">${c.name}</span>
       </td>
       <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">${c.client}</td>
       <td class="px-4 py-1 whitespace-nowrap ${c.passDaysLeft!==null && c.passDaysLeft<=30?'date-alert':''}">${fmtDate(c.passExpiry)}</td>
       <td class="px-4 py-1 whitespace-nowrap ${c.contractDaysLeft<=30?'date-alert':''}">${fmtDate(c.contractEnd)}</td>
-    </tr>`).join('') : `<tr><td colspan="5" class="px-4 py-4 text-sm text-[var(--muted)]">No approaching expiries.</td></tr>`;
+    </tr>`).join('') : `<tr><td colspan="4" class="px-4 py-4 text-sm text-[var(--muted)]">No approaching expiries.</td></tr>`;
 
   document.querySelectorAll('.home-expiry-name-link').forEach(el=>{
     el.addEventListener('click', ()=> openTalentProfile(Number(el.dataset.id), 'home'));
@@ -3084,7 +3081,6 @@ function renderWorkpassTable(){
       const daysLabel = isCitizenOrPR ? '—' : (c.passDaysLeft<0?`${Math.abs(c.passDaysLeft)}d overdue`:`${c.passDaysLeft}d`);
       return `
         <tr class="row-hover border-b border-[var(--border)] ${stale ? 'row-alert' : ''}">
-          <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">C${String(c.id).padStart(6,'0')}</td>
           <td class="px-4 py-1 font-medium whitespace-nowrap">
             <span class="wptable-name-link cursor-pointer hover:underline hover:text-[var(--blue-dark)]" data-id="${c.id}">${c.name}</span>
           </td>
@@ -3153,7 +3149,6 @@ document.getElementById('workpassClearFilters').addEventListener('click', e=>{
 });
 function downloadWorkpassList(format){
   exportRowsToExcel('work-pass.xlsx', [
-    { label: 'ID', value: c=>`C${String(c.id).padStart(6,'0')}` },
     { label: 'Name', value: c=>c.name },
     { label: 'NRIC/FIN', value: c=>workpassFinNo(c) },
     { label: 'Client', value: c=>c.client },
@@ -3217,7 +3212,6 @@ function initContractsFilters(){
   });
   function downloadContractsList(format){
     exportRowsToExcel('contracts.xlsx', [
-      { label: 'ID', value: c=>`C${String(c.id).padStart(6,'0')}` },
       { label: 'Name', value: c=>c.name },
       { label: 'Client', value: c=>c.client },
       { label: 'Contract Start', value: c=>xlDate(c.contractStart) },
@@ -3320,7 +3314,6 @@ function renderContracts(){
     const stale = needsRenewalCols && isContractRenewalStale(c);
     return `
     <tr class="row-hover border-b border-[var(--border)] ${stale ? 'row-alert' : ''}">
-      <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">C${String(c.id).padStart(6,'0')}</td>
       <td class="px-4 py-1 font-medium whitespace-nowrap">
         <span class="contract-name-link cursor-pointer hover:underline hover:text-[var(--blue-dark)]" data-id="${c.id}">${c.name}</span>
       </td>
@@ -3568,7 +3561,6 @@ function initFinanceFilters(){
   });
   function downloadFinanceList(format){
     exportRowsToExcel('finance.xlsx', [
-      { label: 'ID', value: c=>`C${String(c.id).padStart(6,'0')}` },
       { label: 'Name', value: c=>c.name },
       { label: 'Basic Salary', value: c=>Math.round(lastFinanceFigures.get(c.id).salary) },
       { label: 'Levy', value: c=>Math.round(lastFinanceFigures.get(c.id).levy) },
@@ -3747,7 +3739,6 @@ function renderFinance(){
     const f = figuresByRow.get(c.id);
     return `
     <tr class="row-hover border-b border-[var(--border)]">
-      <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">C${String(c.id).padStart(6,'0')}</td>
       <td class="px-4 py-1 font-medium whitespace-nowrap">
         <span class="finance-name-link cursor-pointer hover:underline hover:text-[var(--blue-dark)]" data-id="${c.id}">${c.name}</span>
       </td>
@@ -3817,7 +3808,6 @@ function initBillingFilters(){
   });
   function downloadBillingList(format){
     exportRowsToExcel('talent-billing.xlsx', [
-      { label: 'ID', value: c=>`C${String(c.id).padStart(6,'0')}` },
       { label: 'Name', value: c=>c.name },
       { label: 'Client / Project', value: c=>`${c.client} - ${dash(c.projectType)}` },
       { label: 'Charge Rate', value: c=>c.chargeRate },
@@ -3919,7 +3909,6 @@ function renderBilling(){
 
   tbody.innerHTML = pageRows.map(c=>`
     <tr class="row-hover border-b border-[var(--border)]">
-      <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">C${String(c.id).padStart(6,'0')}</td>
       <td class="px-4 py-1 font-medium whitespace-nowrap">
         <span class="billing-name-link cursor-pointer hover:underline hover:text-[var(--blue-dark)]" data-id="${c.id}">${c.name}</span>
       </td>
@@ -4102,7 +4091,6 @@ function initOperationsFilters(){
   });
   function downloadOperationsList(format){
     exportRowsToExcel('leave-timesheet.xlsx', [
-      { label: 'ID', value: c=>`C${String(c.id).padStart(6,'0')}` },
       { label: 'Name', value: c=>c.name },
       { label: 'Client', value: c=>c.client },
       { label: 'Annual Leave Balance', value: c=>c.annualLeaveBalance },
@@ -4211,7 +4199,6 @@ function renderOperations(){
   tbody.innerHTML = pageRows.map(c=>{
     return `
     <tr class="row-hover border-b border-[var(--border)]">
-      <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">C${String(c.id).padStart(6,'0')}</td>
       <td class="px-4 py-1 font-medium whitespace-nowrap">
         <span class="leave-name-link cursor-pointer hover:underline hover:text-[var(--blue-dark)]" data-id="${c.id}">${c.name}</span>
       </td>
@@ -5022,7 +5009,6 @@ function renderPolicyTable(){
     const stale = needsRenewalCols && isPolicyRenewalStale(c);
     return `
     <tr class="row-hover border-b border-[var(--border)] ${stale ? 'row-alert' : ''}">
-      <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">C${String(c.id).padStart(6,'0')}</td>
       <td class="px-4 py-1 font-medium whitespace-nowrap"><span class="renewal-talent-link cursor-pointer hover:underline hover:text-[var(--blue-dark)]" data-id="${c.id}" data-returnview="insurance">${c.name}</span></td>
       <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap"><span class="renewal-client-link cursor-pointer hover:underline hover:text-[var(--blue-dark)]" data-client="${c.client}">${c.client}</span></td>
       <td class="px-4 py-1 whitespace-nowrap">${hasPolicy ? c.policyType : '-'}</td>
@@ -5242,7 +5228,6 @@ function renderRenewalContract(){
     const stale = needsRenewalCols && isContractRenewalStale(c);
     return `
     <tr class="row-hover border-b border-[var(--border)] ${stale ? 'row-alert' : ''}">
-      <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">C${String(c.id).padStart(6,'0')}</td>
       <td class="px-4 py-1 font-medium whitespace-nowrap"><span class="renewal-talent-link cursor-pointer hover:underline hover:text-[var(--blue-dark)]" data-id="${c.id}" data-returnview="contracts">${c.name}</span></td>
       <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap"><span class="renewal-client-link cursor-pointer hover:underline hover:text-[var(--blue-dark)]" data-client="${c.client}">${c.client}</span></td>
       <td class="px-4 py-1 whitespace-nowrap">${fmtDate(c.contractStart)}</td>
@@ -5551,7 +5536,6 @@ function renderRenewalWorkpass(){
     const stale = needsRenewalCols && isPassRenewalStale(c);
     return `
     <tr class="row-hover border-b border-[var(--border)] ${stale ? 'row-alert' : ''}">
-      <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">C${String(c.id).padStart(6,'0')}</td>
       <td class="px-4 py-1 font-medium whitespace-nowrap"><span class="renewal-talent-link cursor-pointer hover:underline hover:text-[var(--blue-dark)]" data-id="${c.id}" data-returnview="workpass">${c.name}</span></td>
       <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">${c.nric}</td>
       <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap"><span class="renewal-client-link cursor-pointer hover:underline hover:text-[var(--blue-dark)]" data-client="${c.client}">${c.client}</span></td>
@@ -6447,7 +6431,6 @@ function initOffboardingFilters(){
   });
   function downloadOffboardingList(format){
     exportRowsToExcel('offboarding.xlsx', [
-      { label: 'ID', value: c=>`C${String(c.id).padStart(6,'0')}` },
       { label: 'Name', value: c=>c.name },
       { label: 'Client', value: c=>c.client },
       { label: 'Exit Status', value: c=>c.exitStatus },
@@ -6555,7 +6538,6 @@ function renderOffboarding(){
 
   tbody.innerHTML = pageRows.map(c=>`
       <tr class="row-hover border-b border-[var(--border)]">
-        <td class="px-4 py-1 text-[var(--muted)] whitespace-nowrap">C${String(c.id).padStart(6,'0')}</td>
         <td class="px-4 py-1 font-medium whitespace-nowrap">
           <span class="offboard-name-link cursor-pointer hover:underline hover:text-[var(--blue-dark)]" data-id="${c.id}">${c.name}</span>
         </td>
