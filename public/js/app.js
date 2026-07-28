@@ -762,7 +762,7 @@ function renderStats(){
   const headcount = talents.filter(c=>["Active","Eligible for Renewal","Requires Renewal","Notice Period"].includes(contractStatusDisplay(c).label)).length;
   const expiringContracts = talents.filter(c=>c.contractDaysLeft < 46).length;
   const expiringWorkPasses = talents.filter(c=>c.passDaysLeft !== null && c.passDaysLeft < 46).length;
-  const approachingExpiries = talents.filter(c=>c.alert).length;
+  const approachingExpiries = urgentNotificationsCount(collectUrgentNotifications());
   const totalPayroll = talents.reduce((s,c)=>s+c.salary,0);
 
   const cards = [
@@ -2220,52 +2220,74 @@ const notifDropdown = document.getElementById('notifDropdown');
 const profileBtn = document.getElementById('profileBtn');
 const profileDropdown = document.getElementById('profileDropdown');
 
+/* Shared by the bell badge count and the dropdown list so the two never disagree about
+   what counts as an "urgent" notification. */
+function collectUrgentNotifications(){
+  return {
+    passExpiring: talents.filter(c=>c.passDaysLeft!==null && c.passDaysLeft<=30).sort((a,b)=>a.passDaysLeft-b.passDaysLeft),
+    contractExpiring: talents.filter(c=>c.contractDaysLeft<=30).sort((a,b)=>a.contractDaysLeft-b.contractDaysLeft),
+    sowPending: clients.filter(cl=>clientBilling[cl].sowStatus !== "Signed"),
+    poPending: clients.filter(cl=>clientBilling[cl].poStatus !== "Received"),
+    tsNotSubmitted: talents.filter(c=>c.timesheetSubmitted === "No"),
+    tsNotApproved: talents.filter(c=>c.timesheetSubmitted === "Yes" && c.clientApproved === "No"),
+    invoiceDueSoon: clients.filter(cl=>{
+      const b = clientBilling[cl];
+      if(b.invoiceStatus === "Paid" || b.invoiceStatus === "Overdue") return false;
+      const daysToDue = Math.ceil((b.clientPaymentDueDate - today)/86400000);
+      return daysToDue >= 0 && daysToDue <= 14;
+    }),
+    paymentOverdue: clients.filter(cl=>clientBilling[cl].invoiceStatus === "Overdue"),
+    insuranceExpired: talents.filter(c=>c.medicalInsuranceStatus === "Expired"),
+    lastWorkingDaySoon: talents.filter(c=>c.contractDaysLeft >= 0 && c.contractDaysLeft <= 7),
+    passCancellationPending: talents.filter(c=>c.contractDaysLeft < 0 && !c.workPassCancellationDate),
+  };
+}
+function urgentNotificationsCount(n){
+  return n.passExpiring.length + n.contractExpiring.length + n.sowPending.length + n.poPending.length
+    + n.tsNotSubmitted.length + n.tsNotApproved.length + n.invoiceDueSoon.length + n.paymentOverdue.length
+    + n.insuranceExpired.length + n.lastWorkingDaySoon.length + n.passCancellationPending.length;
+}
+
 function renderNotifications(){
   const list = document.getElementById('notifList');
+  const n = collectUrgentNotifications();
 
-  const passExpiring = talents.filter(c=>c.passDaysLeft!==null && c.passDaysLeft<=30).sort((a,b)=>a.passDaysLeft-b.passDaysLeft)
+  const passExpiring = n.passExpiring
     .map(c=> talentNotifRow(c, "Work Pass", c.passDaysLeft<0 ? `Expired ${Math.abs(c.passDaysLeft)}d ago` : `Expires in ${c.passDaysLeft}d`));
 
-  const contractExpiring = talents.filter(c=>c.contractDaysLeft<=30).sort((a,b)=>a.contractDaysLeft-b.contractDaysLeft)
+  const contractExpiring = n.contractExpiring
     .map(c=> talentNotifRow(c, "Contract", c.contractDaysLeft<0 ? `Ended ${Math.abs(c.contractDaysLeft)}d ago` : `Ends in ${c.contractDaysLeft}d`));
 
-  const sowPending = clients.filter(cl=>clientBilling[cl].sowStatus !== "Signed")
+  const sowPending = n.sowPending
     .map(cl=> clientNotifRow(cl, "SOW Status", clientBilling[cl].sowStatus));
 
-  const poPending = clients.filter(cl=>clientBilling[cl].poStatus !== "Received")
+  const poPending = n.poPending
     .map(cl=> clientNotifRow(cl, "PO Status", clientBilling[cl].poStatus));
 
-  const tsNotSubmitted = talents.filter(c=>c.timesheetSubmitted === "No")
+  const tsNotSubmitted = n.tsNotSubmitted
     .map(c=> talentNotifRow(c, "Timesheet", "Not submitted"));
 
-  const tsNotApproved = talents.filter(c=>c.timesheetSubmitted === "Yes" && c.clientApproved === "No")
+  const tsNotApproved = n.tsNotApproved
     .map(c=> talentNotifRow(c, "Timesheet", "Pending client approval"));
 
-  const invoiceDueSoon = clients.filter(cl=>{
-    const b = clientBilling[cl];
-    if(b.invoiceStatus === "Paid" || b.invoiceStatus === "Overdue") return false;
-    const daysToDue = Math.ceil((b.clientPaymentDueDate - today)/86400000);
-    return daysToDue >= 0 && daysToDue <= 14;
-  }).map(cl=>{
+  const invoiceDueSoon = n.invoiceDueSoon.map(cl=>{
     const days = Math.ceil((clientBilling[cl].clientPaymentDueDate - today)/86400000);
     return clientNotifRow(cl, "Invoice Due", `${days}d`);
   });
 
-  const paymentOverdue = clients.filter(cl=>clientBilling[cl].invoiceStatus === "Overdue")
+  const paymentOverdue = n.paymentOverdue
     .map(cl=> clientNotifRow(cl, "Client Payment", "Overdue"));
 
-  const insuranceExpired = talents.filter(c=>c.medicalInsuranceStatus === "Expired")
+  const insuranceExpired = n.insuranceExpired
     .map(c=> talentNotifRow(c, "Medical Insurance", "Expired - renewal needed"));
 
-  const lastWorkingDaySoon = talents.filter(c=>c.contractDaysLeft >= 0 && c.contractDaysLeft <= 7)
+  const lastWorkingDaySoon = n.lastWorkingDaySoon
     .map(c=> talentNotifRow(c, "Last Working Day", fmtDate(c.lastWorkingDay)));
 
-  const passCancellationPending = talents.filter(c=>c.contractDaysLeft < 0 && !c.workPassCancellationDate)
+  const passCancellationPending = n.passCancellationPending
     .map(c=> talentNotifRow(c, "Work Pass Cancellation", "Pending after offboarding"));
 
-  const totalCount = passExpiring.length + contractExpiring.length + sowPending.length + poPending.length
-    + tsNotSubmitted.length + tsNotApproved.length + invoiceDueSoon.length + paymentOverdue.length
-    + insuranceExpired.length + lastWorkingDaySoon.length + passCancellationPending.length;
+  const totalCount = urgentNotificationsCount(n);
 
   if(totalCount === 0){
     list.innerHTML = `<div class="px-4 py-6 text-sm text-[var(--muted)] text-center">There are no urgent tasks for you today.</div>`;
