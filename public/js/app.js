@@ -406,8 +406,13 @@ function dash(v){ return (v===null || v===undefined || (typeof v==='string' && v
 
 function fmtDate(d){ return d ? d.toLocaleDateString('en-SG', { day:'2-digit', month:'short', year:'numeric' }) : '-'; }
 // Always shows cents — imported figures (e.g. SDL/WICA, percentage-derived) carry real
-// decimal precision that rounding to whole dollars would hide.
-function fmtMoney(n){ return (n===null || n===undefined) ? '-' : "S$ " + n.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+// decimal precision that rounding to whole dollars would hide. Exactly zero is the one
+// exception: "S$ 0" reads cleaner than "S$ 0.00" for a field that's simply unset/not applicable.
+function fmtMoney(n){
+  if(n===null || n===undefined) return '-';
+  if(n===0) return "S$ 0";
+  return "S$ " + n.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 function fmtMoneyCompact(n){
   if(n===null || n===undefined) return '-';
   const abs = Math.abs(n);
@@ -1046,7 +1051,7 @@ const exportColumns = [
   {key:'contractStart', label:'Start Date', get:c=>fmtDate(c.contractStart)},
   {key:'contractEnd', label:'End Date', get:c=>fmtDate(c.contractEnd)},
   {key:'contractStatus', label:'Contract Status', get:c=>c.contractStatus},
-  {key:'monthlyCost', label:'Monthly Cost (SGD)', get:c=>{ const v = computeTotalPayrollCost(c); return v===null ? '-' : Math.round(v); }},
+  {key:'monthlyCost', label:'Monthly Cost (SGD)', get:c=>{ const v = computeTotalPayrollCost(c); return v===null ? '-' : v; }},
   {key:'margin', label:'Margin (%)', get:c=>{ const v = computeMargin(c); return v===null ? '-' : Number(v.toFixed(1)); }},
   {key:'owner', label:'Owner', get:c=>c.caseOwner},
 ];
@@ -3599,16 +3604,16 @@ function initFinanceFilters(){
   function downloadFinanceList(format){
     exportRowsToExcel('finance.xlsx', [
       { label: 'Talent Name', value: c=>c.name },
-      { label: 'Basic Salary', value: c=>Math.round(lastFinanceFigures.get(c.id).salary) },
-      { label: 'Levy', value: c=>Math.round(lastFinanceFigures.get(c.id).levy) },
-      { label: 'CPF', value: c=>Math.round(lastFinanceFigures.get(c.id).cpf) },
-      { label: 'SDL', value: c=>Math.round(lastFinanceFigures.get(c.id).sdl) },
-      { label: 'WICA', value: c=>Math.round(lastFinanceFigures.get(c.id).wica) },
-      { label: 'Insurance', value: c=>Math.round(lastFinanceFigures.get(c.id).insurance) },
-      { label: 'Total Employment Cost', value: c=>Math.round(lastFinanceFigures.get(c.id).totalEmploymentCost) },
-      { label: 'Service Fee', value: c=>Math.round(lastFinanceFigures.get(c.id).serviceFee) },
-      { label: 'Monthly Charge Rate', value: c=>Math.round(lastFinanceFigures.get(c.id).revenue) },
-      { label: 'Work Pass Admin Fee', value: c=>Math.round(lastFinanceFigures.get(c.id).adminFee) },
+      { label: 'Basic Salary', value: c=>lastFinanceFigures.get(c.id).salary },
+      { label: 'Levy', value: c=>lastFinanceFigures.get(c.id).levy },
+      { label: 'CPF', value: c=>lastFinanceFigures.get(c.id).cpf },
+      { label: 'SDL', value: c=>lastFinanceFigures.get(c.id).sdl },
+      { label: 'WICA', value: c=>lastFinanceFigures.get(c.id).wica },
+      { label: 'Insurance', value: c=>lastFinanceFigures.get(c.id).insurance },
+      { label: 'Total Employment Cost', value: c=>lastFinanceFigures.get(c.id).totalEmploymentCost },
+      { label: 'Service Fee', value: c=>lastFinanceFigures.get(c.id).serviceFee },
+      { label: 'Monthly Charge Rate', value: c=>lastFinanceFigures.get(c.id).revenue },
+      { label: 'Work Pass Admin Fee', value: c=>lastFinanceFigures.get(c.id).adminFee },
     ], lastFinanceRows, format);
   }
   document.getElementById('financeDownloadLinkXlsx').addEventListener('click', e=>{ e.preventDefault(); downloadFinanceList('xlsx'); });

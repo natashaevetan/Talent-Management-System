@@ -202,7 +202,7 @@ talentsRouter.post(
       // Whatever's left after crediting every cost the sheet broke out explicitly -- a safety
       // net for sheets that only give an aggregate total without a full breakdown.
       const otherStatutoryCosts = totalCost !== null
-        ? Math.max(0, Math.round(totalCost - salary - cpf - levy - skillsDevelopmentLevy - wica - medicalInsuranceCost))
+        ? Math.max(0, totalCost - salary - cpf - levy - skillsDevelopmentLevy - wica - medicalInsuranceCost)
         : 0;
       const chargeRate = Number(r.monthlyChargeRate) || 0;
 
