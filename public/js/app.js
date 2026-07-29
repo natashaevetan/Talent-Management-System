@@ -755,6 +755,17 @@ function arraysEqualUnordered(a, b){
 }
 
 function renderStats(){
+  try{
+    renderStatsInner();
+  }catch(err){
+    console.error("renderStats failed:", err);
+    document.getElementById('statCards').innerHTML =
+      `<div class="col-span-full text-sm p-3 rounded" style="background:var(--red-bg);color:var(--red-text)">
+        Talents Overview failed to load: ${err.message}. Please refresh, or send this message if it persists.
+      </div>`;
+  }
+}
+function renderStatsInner(){
   initTalentsStatsMonthFilter();
   const total = talents.length;
   const pendingStart = talents.filter(c=>contractStatusDisplay(c).label === "Pending Start").length;
