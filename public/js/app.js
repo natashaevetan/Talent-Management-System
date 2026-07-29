@@ -741,14 +741,7 @@ function initTalentsStatsMonthFilter(){
   if(talentsStatsMonthFilterInit) return;
   talentsStatsMonthFilterInit = true;
   const sel = document.getElementById('talentsStatsMonthFilter');
-  for(let i=0;i<6;i++){
-    const idx = HISTORY_MONTHS-1-i;
-    const d = monthDates[idx];
-    const opt = document.createElement('option');
-    opt.value = i;
-    opt.textContent = i===0 ? `${monthLabelFull(d)} (Current)` : monthLabelFull(d);
-    sel.appendChild(opt);
-  }
+  populateMonthDropdownOptions(sel);
   sel.addEventListener('change', e=>{
     talentsStatsMonthOffset = Number(e.target.value);
     renderStats();
@@ -773,13 +766,13 @@ function renderStats(){
   const totalPayroll = talents.reduce((s,c)=>s+c.salary,0);
 
   const cards = [
-    { key:"total", label:"Total Talents", value: total, color:"var(--text)", trend: talentsStatsTrends.total },
-    { key:"pendingStart", label:"Pending Start", value: pendingStart, color:"var(--turquoise-text)", trend: talentsStatsTrends.pendingStart },
-    { key:"noticePeriod", label:"Serving Notice Period", value: noticePeriod, color:"#7A4A1E", trend: talentsStatsTrends.noticePeriod },
-    { key:"headcount", label:"Current Headcount", value: headcount, color:"var(--green-text)", trend: talentsStatsTrends.headcount },
-    { key:"expiringPasses", label:"Expiring Work Passes (<46d)", value: expiringWorkPasses, color:"var(--red-text)", trend: talentsStatsTrends.expiringPasses },
-    { key:"expiringContracts", label:"Expiring Contracts (<46d)", value: expiringContracts, color:"var(--red-text)", trend: talentsStatsTrends.expiringContracts },
-    { key:null, label:"Total Monthly Payroll", value: fmtMoney(totalPayroll), color:"var(--green-text)", trend: talentsStatsTrends.payroll },
+    { key:"total", label:"Total Talents", value: total, color:"var(--text)", trend: talentsStatsTrends.total, desc:"Everyone currently in the system" },
+    { key:"pendingStart", label:"Pending Start", value: pendingStart, color:"var(--turquoise-text)", trend: talentsStatsTrends.pendingStart, desc:"Talents whose contract start date is still in the future" },
+    { key:"noticePeriod", label:"Serving Notice Period", value: noticePeriod, color:"#7A4A1E", trend: talentsStatsTrends.noticePeriod, desc:"Talents flagged as being in their contract notice period" },
+    { key:"headcount", label:"Current Headcount", value: headcount, color:"var(--green-text)", trend: talentsStatsTrends.headcount, desc:"Active workforce right now (Active, Eligible for Renewal, Requires Renewal, or Notice Period)" },
+    { key:"expiringPasses", label:"Expiring Work Passes (<46d)", value: expiringWorkPasses, color:"var(--red-text)", trend: talentsStatsTrends.expiringPasses, desc:"Work passes expiring within 46 days" },
+    { key:"expiringContracts", label:"Expiring Contracts (<46d)", value: expiringContracts, color:"var(--red-text)", trend: talentsStatsTrends.expiringContracts, desc:"Contracts expiring within 46 days" },
+    { key:null, label:"Total Monthly Payroll", value: fmtMoney(totalPayroll), color:"var(--green-text)", trend: talentsStatsTrends.payroll, desc:"Sum of everyone's Basic Salary" },
   ];
   const cardFilterMap = {
     pendingStart: { field:"contractStatusTermMain", value:["Pending Start"] },
@@ -798,7 +791,7 @@ function renderStats(){
       active = arraysEqualUnordered(currentVal, f.value);
     }
     return `
-    <div class="stat-card ${c.key?'stat-card-clickable':''} rounded-lg px-4 py-3 ${active?'stat-card-clickable-active':''}" ${c.key?`data-card="${c.key}"`:''}>
+    <div class="stat-card ${c.key?'stat-card-clickable':''} rounded-lg px-4 py-3 ${active?'stat-card-clickable-active':''}" ${c.key?`data-card="${c.key}"`:''} title="${c.desc}">
       <div class="text-xs text-[var(--muted)] mb-1">${c.label}</div>
       <div class="text-xl font-bold" style="color:${c.color}">${c.value}</div>
       ${homeTrend(c.trend, "vs last month")}
@@ -1712,14 +1705,7 @@ function initProfileMonthFilter(selectId){
   const sel = document.getElementById(selectId);
   if(!profileMonthFilterInit.has(selectId)){
     profileMonthFilterInit.add(selectId);
-    for(let i=0;i<6;i++){
-      const idx = HISTORY_MONTHS-1-i;
-      const d = monthDates[idx];
-      const opt = document.createElement('option');
-      opt.value = i;
-      opt.textContent = i===0 ? `${monthLabelFull(d)} (Current)` : monthLabelFull(d);
-      sel.appendChild(opt);
-    }
+    populateMonthDropdownOptions(sel);
   }
   sel.value = selectId === 'profilePayrollMonthFilter' ? profilePayrollMonthOffset : profileTimesheetMonthOffset;
 }
@@ -2721,14 +2707,7 @@ function initHomeMonthFilter(){
   if(homeMonthFilterInit) return;
   homeMonthFilterInit = true;
   const sel = document.getElementById('homeMonthFilter');
-  for(let i=0;i<6;i++){
-    const idx = HISTORY_MONTHS-1-i;
-    const d = monthDates[idx];
-    const opt = document.createElement('option');
-    opt.value = i;
-    opt.textContent = i===0 ? `${monthLabelFull(d)} (Current)` : monthLabelFull(d);
-    sel.appendChild(opt);
-  }
+  populateMonthDropdownOptions(sel);
   sel.addEventListener('change', e=>{
     homeMonthOffset = Number(e.target.value);
     renderHome();
@@ -2798,14 +2777,7 @@ function initGpBreakdownMonthFilter(){
   if(gpBreakdownFilterInit) return;
   gpBreakdownFilterInit = true;
   const sel = document.getElementById('gpBreakdownMonthFilter');
-  for(let i=0;i<6;i++){
-    const idx = HISTORY_MONTHS-1-i;
-    const d = monthDates[idx];
-    const opt = document.createElement('option');
-    opt.value = i;
-    opt.textContent = i===0 ? `${monthLabelFull(d)} (Current)` : monthLabelFull(d);
-    sel.appendChild(opt);
-  }
+  populateMonthDropdownOptions(sel);
   sel.addEventListener('change', e=>{
     gpBreakdownMonthOffset = Number(e.target.value);
     renderGpBreakdownTable();
@@ -3028,14 +3000,7 @@ function initCosmeticMonthFilter(selectId, onChange){
   const sel = document.getElementById(selectId);
   if(!sel || sel.dataset.msInit) return;
   sel.dataset.msInit = "1";
-  for(let i=0;i<6;i++){
-    const idx = HISTORY_MONTHS-1-i;
-    const d = monthDates[idx];
-    const opt = document.createElement('option');
-    opt.value = i;
-    opt.textContent = i===0 ? `${monthLabelFull(d)} (Current)` : monthLabelFull(d);
-    sel.appendChild(opt);
-  }
+  populateMonthDropdownOptions(sel);
   sel.addEventListener('change', e=> onChange(Number(e.target.value)));
 }
 
@@ -3606,14 +3571,7 @@ function initFinanceMonthFilter(){
   if(financeMonthFilterInit) return;
   financeMonthFilterInit = true;
   const sel = document.getElementById('financeMonthFilter');
-  for(let i=0;i<6;i++){
-    const idx = HISTORY_MONTHS-1-i;
-    const d = monthDates[idx];
-    const opt = document.createElement('option');
-    opt.value = i;
-    opt.textContent = i===0 ? `${monthLabelFull(d)} (Current)` : monthLabelFull(d);
-    sel.appendChild(opt);
-  }
+  populateMonthDropdownOptions(sel);
   sel.addEventListener('change', e=>{
     financeMonthOffset = Number(e.target.value);
     renderFinance();
@@ -4456,6 +4414,26 @@ const HISTORY_MONTHS = 36;
 
 function addMonths(date, n){ return new Date(date.getFullYear(), date.getMonth()+n, 1); }
 const monthDates = Array.from({length:HISTORY_MONTHS}, (_,i)=> addMonths(today, i - (HISTORY_MONTHS-1)));
+
+// Same "no fake history" principle, applied to every "Viewing data for" month dropdown in the
+// app: TMS only has real data from when it went live onward, so none of them should offer a
+// month before that as if there were something real to show for it.
+const DATA_START_DATE = new Date(2026, 6, 1); // July 2026
+function monthDropdownOptionCount(){
+  const monthsSinceLaunch = (today.getFullYear() - DATA_START_DATE.getFullYear()) * 12 + (today.getMonth() - DATA_START_DATE.getMonth());
+  return Math.max(1, Math.min(6, monthsSinceLaunch + 1));
+}
+function populateMonthDropdownOptions(sel){
+  const count = monthDropdownOptionCount();
+  for(let i=0;i<count;i++){
+    const idx = HISTORY_MONTHS-1-i;
+    const d = monthDates[idx];
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = i===0 ? `${monthLabelFull(d)} (Current)` : monthLabelFull(d);
+    sel.appendChild(opt);
+  }
+}
 
 // No fake history: real monthly snapshots only start accumulating once the app has been live
 // for a while. buildAnalyticsMetricsTable() below shows current real values only instead of a
