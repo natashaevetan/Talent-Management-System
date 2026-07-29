@@ -711,6 +711,11 @@ function applyPermissionUI(){
 }
 sidebarLinks.forEach(l=>l.addEventListener('click', e=>{ e.preventDefault(); switchView(l.dataset.view); }));
 document.getElementById('headerTitleLink').addEventListener('click', ()=> switchView('home'));
+// Logo click is a full refresh (not just a view switch) landing on Home, per user request --
+// bootstrap() below checks for this query param and clears it once handled.
+document.getElementById('headerLogoLink').addEventListener('click', ()=>{
+  window.location.href = window.location.pathname + '?view=home';
+});
 
 document.querySelectorAll('.sidebar-group-toggle').forEach(btn=>{
   btn.addEventListener('click', ()=>{
@@ -6923,6 +6928,12 @@ async function bootstrap(){
   renderStats();
   updateSortArrows();
   renderTable();
-  switchView('talents');
+  const params = new URLSearchParams(window.location.search);
+  if(params.get('view') === 'home'){
+    history.replaceState(null, '', window.location.pathname);
+    switchView('home');
+  } else {
+    switchView('talents');
+  }
 }
 bootstrap();
