@@ -2324,17 +2324,20 @@ function collectUrgentNotifications(){
   return {
     passExpiring: talents.filter(c=>c.passDaysLeft!==null && c.passDaysLeft<=30).sort((a,b)=>a.passDaysLeft-b.passDaysLeft),
     contractExpiring: talents.filter(c=>c.contractDaysLeft<=30).sort((a,b)=>a.contractDaysLeft-b.contractDaysLeft),
-    sowPending: clients.filter(cl=>clientBilling[cl].sowStatus !== "Signed"),
-    poPending: clients.filter(cl=>clientBilling[cl].poStatus !== "Received"),
+    // clientBilling[cl] can be missing for a client that predates billing rows being created
+    // on every client (or a legacy/manually-inserted one) -- treat it as "nothing to flag"
+    // rather than crashing the whole notifications/stats computation on one bad client.
+    sowPending: clients.filter(cl=>clientBilling[cl] && clientBilling[cl].sowStatus !== "Signed"),
+    poPending: clients.filter(cl=>clientBilling[cl] && clientBilling[cl].poStatus !== "Received"),
     tsNotSubmitted: talents.filter(c=>c.timesheetSubmitted === "No"),
     tsNotApproved: talents.filter(c=>c.timesheetSubmitted === "Yes" && c.clientApproved === "No"),
     invoiceDueSoon: clients.filter(cl=>{
       const b = clientBilling[cl];
-      if(b.invoiceStatus === "Paid" || b.invoiceStatus === "Overdue") return false;
+      if(!b || b.invoiceStatus === "Paid" || b.invoiceStatus === "Overdue") return false;
       const daysToDue = Math.ceil((b.clientPaymentDueDate - today)/86400000);
       return daysToDue >= 0 && daysToDue <= 14;
     }),
-    paymentOverdue: clients.filter(cl=>clientBilling[cl].invoiceStatus === "Overdue"),
+    paymentOverdue: clients.filter(cl=>clientBilling[cl] && clientBilling[cl].invoiceStatus === "Overdue"),
     insuranceExpired: talents.filter(c=>c.medicalInsuranceStatus === "Expired"),
     lastWorkingDaySoon: talents.filter(c=>c.contractDaysLeft >= 0 && c.contractDaysLeft <= 7),
     passCancellationPending: talents.filter(c=>c.contractDaysLeft < 0 && !c.workPassCancellationDate),

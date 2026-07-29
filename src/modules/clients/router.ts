@@ -145,7 +145,14 @@ clientsRouter.patch(
     }
 
     const client = await prisma.client.findUniqueOrThrow({ where: { name } });
-    await prisma.clientBilling.update({ where: { clientId: client.id }, data });
+    // upsert, not update: a client created before every client got a billing row on creation
+    // (or one inserted directly, bypassing the app) may not have one yet -- update() would
+    // throw "record not found" instead of just creating it here.
+    await prisma.clientBilling.upsert({
+      where: { clientId: client.id },
+      update: data,
+      create: { clientId: client.id, ...data },
+    });
     res.json(await reserializeByName(name, req));
   })
 );
